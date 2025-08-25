@@ -1,0 +1,78 @@
+import fs from 'fs';
+import path from 'path';
+
+interface AppConfig {
+  apiSettings: {
+    ocrEndpoint: string;
+    llmModel: string;
+  };
+  processingSettings: {
+    autoProcessing: boolean;
+    accuracyThreshold: number;
+    maxFileSize: number;
+    retryAttempts: number;
+  };
+  notificationSettings: {
+    emailNotifications: boolean;
+    processingComplete: boolean;
+    processingFailed: boolean;
+    weeklyReports: boolean;
+  };
+}
+
+const defaultConfig: AppConfig = {
+  apiSettings: {
+    ocrEndpoint: "https://api.mistral.ai/v1/ocr/process",
+    llmModel: "mistral-large-latest"
+  },
+  processingSettings: {
+    autoProcessing: true,
+    accuracyThreshold: 95,
+    maxFileSize: 50,
+    retryAttempts: 3
+  },
+  notificationSettings: {
+    emailNotifications: true,
+    processingComplete: true,
+    processingFailed: true,
+    weeklyReports: false
+  }
+};
+
+const configPath = path.join(process.cwd(), 'config.json');
+
+export function loadConfig(): AppConfig {
+  try {
+    if (fs.existsSync(configPath)) {
+      const configData = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(configData);
+      return { ...defaultConfig, ...config };
+    }
+  } catch (error) {
+    console.warn('Failed to load config file, using defaults:', error);
+  }
+  return defaultConfig;
+}
+
+export function saveConfig(config: AppConfig): void {
+  try {
+    const configData = JSON.stringify(config, null, 2);
+    fs.writeFileSync(configPath, configData, 'utf-8');
+    console.log('Configuration saved successfully to', configPath);
+  } catch (error) {
+    console.error('Failed to save config file:', error);
+    throw new Error('Failed to save configuration');
+  }
+}
+
+export function resetConfig(): AppConfig {
+  try {
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+    }
+    return defaultConfig;
+  } catch (error) {
+    console.error('Failed to reset config file:', error);
+    throw new Error('Failed to reset configuration');
+  }
+}

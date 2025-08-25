@@ -17,11 +17,20 @@ export async function processDocumentWithMistral(
   }
 
   try {
+    // Load configuration to get OCR endpoint and LLM model
+    const configResponse = await fetch('http://localhost:5000/api/config');
+    const config = configResponse.ok ? await configResponse.json() : {
+      apiSettings: {
+        ocrEndpoint: "https://api.mistral.ai/v1/ocr/process",
+        llmModel: "mistral-large-latest"
+      }
+    };
+
     // Step 1: OCR Processing with Mistral
-    const ocrResult = await processOCR(filePath, MISTRAL_API_KEY);
+    const ocrResult = await processOCR(filePath, MISTRAL_API_KEY, config.apiSettings.ocrEndpoint);
     
     // Step 2: Extract key-value pairs using Mistral LLM
-    const extractionResult = await extractKeyValuePairs(ocrResult.text, placeholders, MISTRAL_API_KEY);
+    const extractionResult = await extractKeyValuePairs(ocrResult.text, placeholders, MISTRAL_API_KEY, config.apiSettings.llmModel);
     
     return {
       extractedText: ocrResult.text,
@@ -36,7 +45,7 @@ export async function processDocumentWithMistral(
   }
 }
 
-async function processOCR(filePath: string, apiKey: string) {
+async function processOCR(filePath: string, apiKey: string, ocrEndpoint: string = "https://api.mistral.ai/v1/ocr/process") {
   const fs = await import('fs');
   const FormData = require('form-data');
   
@@ -44,7 +53,7 @@ async function processOCR(filePath: string, apiKey: string) {
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
     
-    const response = await fetch('https://api.mistral.ai/v1/ocr/process', {
+    const response = await fetch(ocrEndpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -76,7 +85,7 @@ async function processOCR(filePath: string, apiKey: string) {
   }
 }
 
-async function extractKeyValuePairs(text: string, placeholders: string[], apiKey: string) {
+async function extractKeyValuePairs(text: string, placeholders: string[], apiKey: string, llmModel: string = "mistral-large-latest") {
   const prompt = `
 You are an expert in chemical document analysis. Extract the following information from the provided document text and return it as a JSON object.
 
@@ -107,7 +116,7 @@ Response format:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
+        model: llmModel,
         messages: [{
           role: 'user',
           content: prompt

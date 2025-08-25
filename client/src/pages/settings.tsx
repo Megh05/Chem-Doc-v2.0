@@ -1,9 +1,12 @@
-import { useState } from "react";
-import { ArrowLeft, Settings as SettingsIcon, Key, Database, Bell, Shield, Cpu } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Settings as SettingsIcon, Key, Database, Bell, Shield, Cpu, Save, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Link } from "wouter";
 
 export default function Settings() {
@@ -26,6 +29,112 @@ export default function Settings() {
     processingFailed: true,
     weeklyReports: false
   });
+
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Load configuration on component mount
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["/api/config"],
+  });
+
+  // Update state when config loads
+  useEffect(() => {
+    if (config && typeof config === 'object') {
+      const configObj = config as any;
+      
+      setApiSettings(prev => ({
+        ...prev,
+        ocrEndpoint: configObj.apiSettings?.ocrEndpoint || prev.ocrEndpoint,
+        llmModel: configObj.apiSettings?.llmModel || prev.llmModel
+      }));
+      
+      setProcessingSettings(prev => ({
+        autoProcessing: configObj.processingSettings?.autoProcessing ?? prev.autoProcessing,
+        accuracyThreshold: configObj.processingSettings?.accuracyThreshold || prev.accuracyThreshold,
+        maxFileSize: configObj.processingSettings?.maxFileSize || prev.maxFileSize,
+        retryAttempts: configObj.processingSettings?.retryAttempts || prev.retryAttempts
+      }));
+      
+      setNotificationSettings(prev => ({
+        emailNotifications: configObj.notificationSettings?.emailNotifications ?? prev.emailNotifications,
+        processingComplete: configObj.notificationSettings?.processingComplete ?? prev.processingComplete,
+        processingFailed: configObj.notificationSettings?.processingFailed ?? prev.processingFailed,
+        weeklyReports: configObj.notificationSettings?.weeklyReports ?? prev.weeklyReports
+      }));
+    }
+  }, [config]);
+
+  // Save configuration mutation
+  const saveConfigMutation = useMutation({
+    mutationFn: async () => {
+      const configData = {
+        apiSettings: {
+          ocrEndpoint: apiSettings.ocrEndpoint,
+          llmModel: apiSettings.llmModel
+        },
+        processingSettings,
+        notificationSettings
+      };
+      
+      const response = await apiRequest('POST', '/api/config', configData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/config'] });
+      toast({
+        title: "Settings saved",
+        description: "Your configuration has been saved to config.json",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save settings",
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Reset configuration mutation
+  const resetConfigMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/config/reset');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/config'] });
+      toast({
+        title: "Settings reset",
+        description: "Configuration has been reset to defaults",
+      });
+      // Reset local state to defaults
+      if (data.config) {
+        setApiSettings({
+          ...apiSettings,
+          ocrEndpoint: data.config.apiSettings.ocrEndpoint,
+          llmModel: data.config.apiSettings.llmModel
+        });
+        setProcessingSettings(data.config.processingSettings);
+        setNotificationSettings(data.config.notificationSettings);
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Reset failed",
+        description: error.message || "Failed to reset settings",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleSave = () => {
+    saveConfigMutation.mutate();
+  };
+
+  const handleReset = () => {
+    resetConfigMutation.mutate();
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -53,9 +162,15 @@ export default function Settings() {
           <p className="text-gray-600 mt-1">Configure your ChemDocFlow application preferences</p>
         </div>
 
-        <div className="space-y-6">
-          {/* API Configuration */}
-          <Card className="p-6">
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>
+            <p className="text-gray-500 mt-4">Loading settings...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* API Configuration */}
+            <Card className="p-6">
             <div className="flex items-center mb-4">
               <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
                 <Key className="w-4 h-4 text-primary-600" />
@@ -267,16 +382,28 @@ export default function Settings() {
             </div>
           </Card>
 
-          {/* Save Settings */}
-          <div className="flex justify-end space-x-4">
-            <Button variant="outline" data-testid="button-reset-settings">
-              Reset to Defaults
-            </Button>
-            <Button data-testid="button-save-settings">
-              Save Settings
-            </Button>
+            {/* Save Settings */}
+            <div className="flex justify-end space-x-4">
+              <Button 
+                variant="outline" 
+                onClick={handleReset}
+                disabled={resetConfigMutation.isPending}
+                data-testid="button-reset-settings"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {resetConfigMutation.isPending ? "Resetting..." : "Reset to Defaults"}
+              </Button>
+              <Button 
+                onClick={handleSave}
+                disabled={saveConfigMutation.isPending}
+                data-testid="button-save-settings"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {saveConfigMutation.isPending ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

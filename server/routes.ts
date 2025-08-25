@@ -8,6 +8,7 @@ interface MulterRequest extends Request {
   file?: Express.Multer.File;
 }
 import { storage } from "./storage";
+import { loadConfig, saveConfig, resetConfig } from "./config";
 import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema } from "@shared/schema";
 import { processDocumentWithMistral } from "../client/src/lib/mistral";
 
@@ -148,6 +149,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedJob);
     } catch (error: any) {
       res.status(400).json({ message: "Failed to update processing job", error: error.message });
+    }
+  });
+
+  // Configuration endpoints
+  app.get("/api/config", async (req, res) => {
+    try {
+      const config = loadConfig();
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to load configuration", error: error.message });
+    }
+  });
+
+  app.post("/api/config", async (req, res) => {
+    try {
+      saveConfig(req.body);
+      res.json({ message: "Configuration saved successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to save configuration", error: error.message });
+    }
+  });
+
+  app.post("/api/config/reset", async (req, res) => {
+    try {
+      const defaultConfig = resetConfig();
+      res.json({ message: "Configuration reset to defaults", config: defaultConfig });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to reset configuration", error: error.message });
     }
   });
 
