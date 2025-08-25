@@ -161,11 +161,18 @@ export default function Templates() {
                       data-testid="input-template-file"
                     />
                     <Button
-                      onClick={() => document.getElementById('template-file-input')?.click()}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const fileInput = document.getElementById('template-file-input') as HTMLInputElement;
+                        if (fileInput) {
+                          fileInput.click();
+                        }
+                      }}
                       disabled={uploadMutation.isPending}
                       variant="default"
                       size="lg"
                       className="w-full"
+                      type="button"
                       data-testid="button-upload-template"
                     >
                       {uploadMutation.isPending ? (
