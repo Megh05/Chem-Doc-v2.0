@@ -157,11 +157,18 @@ export default function Templates() {
                     data-testid="input-template-file"
                   />
                   <Button
-                    onClick={() => document.getElementById('template-file-upload')?.click()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const fileInput = document.getElementById('template-file-upload') as HTMLInputElement;
+                      if (fileInput) {
+                        fileInput.click();
+                      }
+                    }}
                     disabled={uploadMutation.isPending}
                     variant="outline"
                     className="w-full"
                     data-testid="button-template-choose-files"
+                    type="button"
                   >
                     {uploadMutation.isPending ? "Uploading..." : "Choose Template File"}
                   </Button>

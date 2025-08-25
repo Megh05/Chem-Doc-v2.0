@@ -142,7 +142,14 @@ export default function DocumentUpload({ onDocumentUploaded, isActive, isComplet
             <Button
               disabled={uploadMutation.isPending}
               data-testid="button-choose-files"
-              onClick={() => document.getElementById('file-upload')?.click()}
+              onClick={(e) => {
+                e.preventDefault();
+                const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                if (fileInput) {
+                  fileInput.click();
+                }
+              }}
+              type="button"
             >
               {uploadMutation.isPending ? "Uploading..." : "Choose Files"}
             </Button>
