@@ -53,7 +53,9 @@ export default function DocumentUpload({ onDocumentUploaded, isActive, isComplet
   });
 
   const handleFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      return;
+    }
     
     const file = files[0];
     const maxSize = 50 * 1024 * 1024; // 50MB
@@ -72,13 +74,14 @@ export default function DocumentUpload({ onDocumentUploaded, isActive, isComplet
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword',
       'image/png',
-      'image/jpeg'
+      'image/jpeg',
+      'image/jpg'
     ];
     
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Invalid file type",
-        description: "Only PDF, DOCX, PNG, and JPG files are supported",
+        description: `Only PDF, DOCX, PNG, and JPG files are supported. Selected: ${file.type}`,
         variant: "destructive",
       });
       return;

@@ -49,7 +49,16 @@ export default function Templates() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !uploadData.name) return;
+    if (!file) return;
+    
+    if (!uploadData.name) {
+      toast({
+        title: "Template name required",
+        description: "Please enter a template name before uploading a file",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -141,7 +150,7 @@ export default function Templates() {
                   type="file"
                   accept=".docx,.doc"
                   onChange={handleFileUpload}
-                  disabled={!uploadData.name || uploadMutation.isPending}
+                  disabled={uploadMutation.isPending}
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
                   data-testid="input-template-file"
                 />
