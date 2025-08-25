@@ -48,8 +48,6 @@ export default function Templates() {
     }
   });
 
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -72,12 +70,6 @@ export default function Templates() {
     formData.append('placeholders', JSON.stringify([]));
 
     uploadMutation.mutate(formData);
-  };
-
-  const openFileDialog = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
   };
 
   const formatDate = (date: string | Date) => {
@@ -158,25 +150,20 @@ export default function Templates() {
                   Template File
                 </label>
                 <div className="space-y-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".docx,.doc"
-                    onChange={handleFileUpload}
-                    disabled={uploadMutation.isPending}
-                    className="hidden"
-                    data-testid="input-template-file"
-                  />
-                  <Button
-                    onClick={openFileDialog}
-                    disabled={uploadMutation.isPending}
-                    variant="outline"
-                    className="w-full"
-                    data-testid="button-template-choose-files"
-                    type="button"
+                  <label 
+                    htmlFor="template-file-input"
+                    className="block w-full"
                   >
-                    {uploadMutation.isPending ? "Uploading..." : "Choose Template File"}
-                  </Button>
+                    <input
+                      id="template-file-input"
+                      type="file"
+                      accept=".docx,.doc"
+                      onChange={handleFileUpload}
+                      disabled={uploadMutation.isPending}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 file:cursor-pointer cursor-pointer disabled:opacity-50"
+                      data-testid="input-template-file"
+                    />
+                  </label>
                   <p className="text-xs text-gray-500">
                     Supports DOCX and DOC files only
                   </p>
