@@ -10,7 +10,7 @@ interface MulterRequest extends Request {
 import { storage } from "./storage";
 import { loadConfig, saveConfig, resetConfig } from "./config";
 import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema } from "@shared/schema";
-import { processDocumentWithMistral } from "../client/src/lib/mistral";
+import { processDocumentWithMistral, extractPlaceholdersFromTemplate } from "./lib/mistral";
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -55,12 +55,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      // Extract placeholders from template automatically
+      let placeholders: string[] = [];
+      try {
+        placeholders = await extractPlaceholdersFromTemplate(req.file.path);
+        console.log(`Extracted ${placeholders.length} placeholders from template:`, placeholders);
+      } catch (error) {
+        console.error('Failed to extract placeholders from template:', error);
+        // Use fallback placeholders if extraction fails
+        placeholders = req.body.placeholders ? JSON.parse(req.body.placeholders) : [];
+      }
+
       const templateData = {
         name: req.body.name,
         type: req.body.type,
         fileName: req.file.originalname,
         fileSize: req.file.size,
-        placeholders: req.body.placeholders ? JSON.parse(req.body.placeholders) : []
+        placeholders
       };
 
       const validatedData = insertTemplateSchema.parse(templateData);
