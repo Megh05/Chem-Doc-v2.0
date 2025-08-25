@@ -146,14 +146,29 @@ export default function Templates() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Template File
                 </label>
-                <input
-                  type="file"
-                  accept=".docx,.doc"
-                  onChange={handleFileUpload}
-                  disabled={uploadMutation.isPending}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
-                  data-testid="input-template-file"
-                />
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept=".docx,.doc"
+                    onChange={handleFileUpload}
+                    disabled={uploadMutation.isPending}
+                    className="hidden"
+                    id="template-file-upload"
+                    data-testid="input-template-file"
+                  />
+                  <Button
+                    onClick={() => document.getElementById('template-file-upload')?.click()}
+                    disabled={uploadMutation.isPending}
+                    variant="outline"
+                    className="w-full"
+                    data-testid="button-template-choose-files"
+                  >
+                    {uploadMutation.isPending ? "Uploading..." : "Choose Template File"}
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Supports DOCX and DOC files only
+                  </p>
+                </div>
               </div>
               <div className="flex space-x-2">
                 <Button

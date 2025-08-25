@@ -139,14 +139,13 @@ export default function DocumentUpload({ onDocumentUploaded, isActive, isComplet
               id="file-upload"
               data-testid="input-file-upload"
             />
-            <label htmlFor="file-upload">
-              <Button
-                disabled={uploadMutation.isPending}
-                data-testid="button-choose-files"
-              >
-                {uploadMutation.isPending ? "Uploading..." : "Choose Files"}
-              </Button>
-            </label>
+            <Button
+              disabled={uploadMutation.isPending}
+              data-testid="button-choose-files"
+              onClick={() => document.getElementById('file-upload')?.click()}
+            >
+              {uploadMutation.isPending ? "Uploading..." : "Choose Files"}
+            </Button>
             
             <p className="text-xs text-gray-500 mt-3">
               Supports PDF, DOCX, PNG, JPG • Max 50MB per file
