@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, FileText, Upload, Trash2, Download, Plus, Edit3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,16 +48,20 @@ export default function Templates() {
     }
   });
 
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (!uploadData.name) {
+    if (!uploadData.name.trim()) {
       toast({
         title: "Template name required",
         description: "Please enter a template name before uploading a file",
         variant: "destructive",
       });
+      // Clear the file input
+      e.target.value = '';
       return;
     }
 
@@ -67,6 +72,12 @@ export default function Templates() {
     formData.append('placeholders', JSON.stringify([]));
 
     uploadMutation.mutate(formData);
+  };
+
+  const openFileDialog = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const formatDate = (date: string | Date) => {
@@ -148,22 +159,16 @@ export default function Templates() {
                 </label>
                 <div className="space-y-2">
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept=".docx,.doc"
                     onChange={handleFileUpload}
                     disabled={uploadMutation.isPending}
                     className="hidden"
-                    id="template-file-upload"
                     data-testid="input-template-file"
                   />
                   <Button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const fileInput = document.getElementById('template-file-upload') as HTMLInputElement;
-                      if (fileInput) {
-                        fileInput.click();
-                      }
-                    }}
+                    onClick={openFileDialog}
                     disabled={uploadMutation.isPending}
                     variant="outline"
                     className="w-full"
