@@ -103,16 +103,24 @@ export default function TemplateSelection({
         <div className="border-2 border-dashed border-primary-300 rounded-lg p-6 text-center bg-primary-50">
           <input
             type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                console.log('File selected:', file.name);
+                // TODO: Handle file upload
+              }
+            }}
             accept=".docx,.doc"
             className="hidden"
             id="template-upload"
             data-testid="input-template-upload"
           />
-          <label htmlFor="template-upload">
-            <Button data-testid="button-upload-template">
-              Upload Template
-            </Button>
-          </label>
+          <Button 
+            onClick={() => document.getElementById('template-upload')?.click()}
+            data-testid="button-upload-template"
+          >
+            Upload Template
+          </Button>
           <p className="text-xs text-gray-500 mt-2">
             Word documents only (.docx, .doc)
           </p>
