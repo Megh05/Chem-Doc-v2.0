@@ -149,25 +149,25 @@ export default function Templates() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Template File
                 </label>
-                <label htmlFor="template-upload-input" className="block">
-                  <input
-                    id="template-upload-input"
-                    type="file"
-                    onChange={handleFileUpload}
-                    accept=".docx,.doc"
-                    className="sr-only"
-                    data-testid="input-template-file"
-                  />
-                  <Button
-                    as="span"
-                    disabled={uploadMutation.isPending}
-                    className="w-full cursor-pointer"
-                    data-testid="button-upload-template"
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    {uploadMutation.isPending ? "Uploading..." : "Upload Template"}
-                  </Button>
-                </label>
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  accept=".docx,.doc"
+                  className="hidden"
+                  id="template-upload-input"
+                  data-testid="input-template-file"
+                />
+                <Button
+                  onClick={() => {
+                    document.getElementById('template-upload-input')?.click();
+                  }}
+                  disabled={uploadMutation.isPending}
+                  className="w-full"
+                  data-testid="button-upload-template"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {uploadMutation.isPending ? "Uploading..." : "Upload Template"}
+                </Button>
                 <p className="text-xs text-gray-500 mt-2 text-center">
                   Word documents only (.docx, .doc) • Max 50MB
                 </p>
