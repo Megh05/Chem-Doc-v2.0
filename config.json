@@ -1,0 +1,18 @@
+{
+  "apiSettings": {
+    "ocrEndpoint": "https://api.mistral.ai/v1/ocr/process",
+    "llmModel": "mistral-small-latest"
+  },
+  "processingSettings": {
+    "autoProcessing": true,
+    "accuracyThreshold": 95,
+    "maxFileSize": 50,
+    "retryAttempts": 3
+  },
+  "notificationSettings": {
+    "emailNotifications": true,
+    "processingComplete": true,
+    "processingFailed": true,
+    "weeklyReports": false
+  }
+}
