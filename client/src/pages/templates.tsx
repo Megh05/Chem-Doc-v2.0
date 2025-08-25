@@ -150,23 +150,40 @@ export default function Templates() {
                   Template File
                 </label>
                 <div className="space-y-2">
-                  <label 
-                    htmlFor="template-file-input"
-                    className="block w-full"
-                  >
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors">
                     <input
                       id="template-file-input"
                       type="file"
                       accept=".docx,.doc"
                       onChange={handleFileUpload}
                       disabled={uploadMutation.isPending}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 file:cursor-pointer cursor-pointer disabled:opacity-50"
+                      className="hidden"
                       data-testid="input-template-file"
                     />
-                  </label>
-                  <p className="text-xs text-gray-500">
-                    Supports DOCX and DOC files only
-                  </p>
+                    <Button
+                      onClick={() => document.getElementById('template-file-input')?.click()}
+                      disabled={uploadMutation.isPending}
+                      variant="default"
+                      size="lg"
+                      className="w-full"
+                      data-testid="button-upload-template"
+                    >
+                      {uploadMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Template
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Word documents only (.docx, .doc)
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex space-x-2">
