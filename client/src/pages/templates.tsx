@@ -149,38 +149,34 @@ export default function Templates() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Template File
                 </label>
-                <div className="border-2 border-dashed border-primary-300 bg-primary-50 rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 text-primary-500 mb-4 mx-auto" />
-                  <p className="text-lg font-medium text-gray-900 mb-2">Choose Template File</p>
-                  <p className="text-sm text-gray-600 mb-4">Select your DOCX or DOC template</p>
-                  
-                  <input
-                    type="file"
-                    onChange={handleFileUpload}
-                    accept=".docx,.doc"
-                    className="hidden"
-                    id="template-file-upload"
-                    data-testid="input-template-file"
-                  />
-                  <Button
-                    disabled={uploadMutation.isPending}
-                    data-testid="button-upload-template"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const fileInput = document.getElementById('template-file-upload') as HTMLInputElement;
-                      if (fileInput) {
-                        fileInput.click();
-                      }
-                    }}
-                    type="button"
-                  >
-                    {uploadMutation.isPending ? "Uploading..." : "Choose File"}
-                  </Button>
-                  
-                  <p className="text-xs text-gray-500 mt-3">
-                    Supports DOCX, DOC • Max 50MB per file
-                  </p>
-                </div>
+                <input
+                  type="file"
+                  ref={(input) => {
+                    if (input) {
+                      (window as any).templateFileInput = input;
+                    }
+                  }}
+                  onChange={handleFileUpload}
+                  accept=".docx,.doc"
+                  style={{ display: 'none' }}
+                  data-testid="input-template-file"
+                />
+                <Button
+                  onClick={() => {
+                    if ((window as any).templateFileInput) {
+                      (window as any).templateFileInput.click();
+                    }
+                  }}
+                  disabled={uploadMutation.isPending}
+                  variant="outline"
+                  className="w-full"
+                  data-testid="button-browse-files"
+                >
+                  {uploadMutation.isPending ? "Uploading..." : "Browse Files"}
+                </Button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Supports DOCX, DOC files only
+                </p>
               </div>
               <div className="flex space-x-2">
                 <Button
