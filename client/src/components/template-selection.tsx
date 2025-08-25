@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { CheckCircle, FileText, Plus, Info } from "lucide-react";
+import { CheckCircle, FileText, Plus, Info, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Template } from "@shared/schema";
 
 interface TemplateSelectionProps {
@@ -20,8 +23,36 @@ export default function TemplateSelection({
   isCompleted
 }: TemplateSelectionProps) {
   const [showUpload, setShowUpload] = useState(false);
+  const [uploadData, setUploadData] = useState({
+    name: "",
+    type: "CoA" as const
+  });
+  const { toast } = useToast();
   
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await apiRequest('POST', '/api/templates', formData);
+      return response.json();
+    },
+    onSuccess: () => {
+      setShowUpload(false);
+      setUploadData({ name: "", type: "CoA" });
+      queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
+      toast({
+        title: "Template uploaded successfully",
+        description: "Your template is now available for document processing",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload template",
+        variant: "destructive",
+      });
+    }
+  });
 
   const formatDate = (date: Date | string) => {
     const now = new Date();
@@ -100,39 +131,93 @@ export default function TemplateSelection({
           </Button>
         </div>
       ) : (
-        <div className="border-2 border-dashed border-primary-300 rounded-lg p-6 text-center bg-primary-50">
-          <input
-            type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                console.log('File selected:', file.name);
-                // TODO: Handle file upload
-              }
-            }}
-            accept=".docx,.doc"
-            className="hidden"
-            id="template-upload"
-            data-testid="input-template-upload"
-          />
-          <Button 
-            onClick={() => document.getElementById('template-upload')?.click()}
-            data-testid="button-upload-template"
-          >
-            Upload Template
-          </Button>
-          <p className="text-xs text-gray-500 mt-2">
-            Word documents only (.docx, .doc)
-          </p>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="mt-2"
-            onClick={() => setShowUpload(false)}
-            data-testid="button-cancel-upload"
-          >
-            Cancel
-          </Button>
+        <div className="border-2 border-dashed border-primary-300 rounded-lg p-6 bg-primary-50">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Template Name
+              </label>
+              <input
+                type="text"
+                value={uploadData.name}
+                onChange={(e) => setUploadData({ ...uploadData, name: e.target.value })}
+                placeholder="Enter template name"
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                data-testid="input-template-name"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Document Type
+              </label>
+              <select
+                value={uploadData.type}
+                onChange={(e) => setUploadData({ ...uploadData, type: e.target.value as "CoA" | "TDS" | "MDMS" })}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                data-testid="select-template-type"
+              >
+                <option value="CoA">Certificate of Analysis (CoA)</option>
+                <option value="TDS">Technical Data Sheet (TDS)</option>
+                <option value="MDMS">Material Data Management Sheet (MDMS)</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Template File
+              </label>
+              <input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (!uploadData.name.trim()) {
+                      toast({
+                        title: "Please enter a template name",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('name', uploadData.name);
+                    formData.append('type', uploadData.type);
+                    formData.append('placeholders', JSON.stringify([]));
+                    
+                    uploadMutation.mutate(formData);
+                  }
+                }}
+                accept=".docx,.doc"
+                className="hidden"
+                id="template-upload"
+                data-testid="input-template-upload"
+              />
+              <Button 
+                onClick={() => document.getElementById('template-upload')?.click()}
+                disabled={uploadMutation.isPending || !uploadData.name.trim()}
+                className="w-full"
+                data-testid="button-upload-template"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {uploadMutation.isPending ? "Uploading..." : "Upload Template"}
+              </Button>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Word documents only (.docx, .doc) • Max 50MB
+              </p>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              onClick={() => setShowUpload(false)}
+              data-testid="button-cancel-upload"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
 
