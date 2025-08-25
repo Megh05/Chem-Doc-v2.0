@@ -25,7 +25,7 @@ export default function TemplateSelection({
   const [showUpload, setShowUpload] = useState(false);
   const [uploadData, setUploadData] = useState({
     name: "",
-    type: "CoA" as const
+    type: "CoA" as "CoA" | "TDS" | "MDMS"
   });
   const { toast } = useToast();
   
