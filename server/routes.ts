@@ -1,8 +1,12 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
 import { storage } from "./storage";
 import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema } from "@shared/schema";
 import { processDocumentWithMistral } from "../client/src/lib/mistral";
@@ -44,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/templates", upload.single('file'), async (req, res) => {
+  app.post("/api/templates", upload.single('file'), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -62,7 +66,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const template = await storage.createTemplate(validatedData);
       
       res.status(201).json(template);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: "Failed to create template", error: error.message });
     }
   });
@@ -77,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/documents", upload.single('file'), async (req, res) => {
+  app.post("/api/documents", upload.single('file'), async (req: MulterRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -94,7 +98,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const document = await storage.createDocument(validatedData);
       
       res.status(201).json(document);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: "Failed to upload document", error: error.message });
     }
   });
@@ -130,7 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       processDocumentInBackground(job.id);
       
       res.status(201).json(job);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: "Failed to create processing job", error: error.message });
     }
   });
@@ -142,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Processing job not found" });
       }
       res.json(updatedJob);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: "Failed to update processing job", error: error.message });
     }
   });
@@ -174,7 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       processDocumentInBackground(job.id);
       
       res.status(201).json(job);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Failed to start document processing", error: error.message });
     }
   });
@@ -219,7 +223,7 @@ async function processDocumentInBackground(jobId: string) {
       processingTime
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Processing error:', error);
     await storage.updateProcessingJob(jobId, {
       status: 'failed',

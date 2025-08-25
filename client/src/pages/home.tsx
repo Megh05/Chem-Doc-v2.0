@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import ProgressSteps from "@/components/progress-steps";
 import DocumentUpload from "@/components/document-upload";
 import TemplateSelection from "@/components/template-selection";
@@ -62,15 +63,21 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" data-testid="button-templates">
-                Templates
-              </Button>
-              <Button variant="ghost" size="sm" data-testid="button-history">
-                History
-              </Button>
-              <Button size="sm" data-testid="button-settings">
-                Settings
-              </Button>
+              <Link href="/templates">
+                <Button variant="ghost" size="sm" data-testid="button-templates">
+                  Templates
+                </Button>
+              </Link>
+              <Link href="/history">
+                <Button variant="ghost" size="sm" data-testid="button-history">
+                  History
+                </Button>
+              </Link>
+              <Link href="/settings">
+                <Button size="sm" data-testid="button-settings">
+                  Settings
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

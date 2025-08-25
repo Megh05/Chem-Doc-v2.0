@@ -30,7 +30,7 @@ export async function processDocumentWithMistral(
       tokensExtracted: ocrResult.tokens
     };
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Mistral processing error:', error);
     throw new Error(`Mistral AI processing failed: ${error.message}`);
   }
