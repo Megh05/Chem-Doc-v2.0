@@ -10,10 +10,10 @@ export interface User {
 export interface Template {
   id: string;
   name: string;
-  type: string; // 'CoA', 'TDS', 'MDMS'
+  type: string; // Dynamic type determined by LLM
   fileName: string;
   fileSize: number;
-  placeholders: string[]; // array of placeholder names
+  placeholders: string[]; // Dynamic placeholders extracted by LLM
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,10 +59,10 @@ export const insertUserSchema = z.object({
 
 export const insertTemplateSchema = z.object({
   name: z.string(),
-  type: z.string(),
+  type: z.string().optional().default('Dynamic'), // LLM-determined type
   fileName: z.string(),
   fileSize: z.number(),
-  placeholders: z.array(z.string()),
+  placeholders: z.array(z.string()).optional().default([]), // LLM-extracted placeholders
 });
 
 export const insertDocumentSchema = z.object({

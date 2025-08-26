@@ -14,59 +14,10 @@ interface DataExtractionProps {
   template: Template | undefined;
 }
 
-// Function to normalize field names from corrupted extraction to clean names
+// Use extracted data as-is from intelligent LLM processing
 const normalizeExtractedData = (rawData: Record<string, any>, template?: Template): Record<string, any> => {
-  const normalizedData: Record<string, any> = {};
-  
-  // Get template placeholders to know expected field names
-  const templatePlaceholders = new Set((template?.placeholders as string[]) || []);
-  
-  // Copy direct matches first (clean field names)
-  Object.keys(rawData).forEach(key => {
-    if (!key.startsWith('_') && (templatePlaceholders.has(key) || templatePlaceholders.size === 0)) {
-      normalizedData[key] = rawData[key];
-    }
-  });
-  
-  // Handle corrupted field names with dynamic mapping
-  Object.keys(rawData).forEach(key => {
-    if (key.startsWith('_') && key.endsWith('_')) {
-      // Extract the core field name from corrupted format like '_field_name__value_'
-      const coreFieldName = key
-        .replace(/^_+/, '') // Remove leading underscores
-        .replace(/_+$/, '') // Remove trailing underscores
-        .replace(/__.*$/, '') // Remove everything after double underscore (specification/default value)
-        .toLowerCase();
-      
-      // Check if this core field name matches any template placeholder
-      const matchingPlaceholder = Array.from(templatePlaceholders).find((placeholder: string) => 
-        placeholder.toLowerCase().includes(coreFieldName) || 
-        coreFieldName.includes(placeholder.toLowerCase())
-      );
-      
-      if (matchingPlaceholder) {
-        normalizedData[matchingPlaceholder] = rawData[key];
-      } else if (templatePlaceholders.size === 0) {
-        // If no template placeholders available, use the cleaned core field name
-        normalizedData[coreFieldName] = rawData[key];
-      }
-    }
-  });
-  
-  // Handle camelCase to snake_case conversion for remaining fields
-  Object.keys(rawData).forEach(key => {
-    if (!normalizedData[key] && !key.startsWith('_')) {
-      const snakeCaseKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-      if (templatePlaceholders.has(snakeCaseKey)) {
-        normalizedData[snakeCaseKey] = rawData[key];
-      }
-    }
-  });
-  
-  // DO NOT modify extracted values - preserve exactly what the AI extracted
-  // The AI should extract exact values with symbols, units, and formatting
-  
-  return normalizedData;
+  // Trust the LLM to provide clean, accurate field names and values
+  return rawData || {};
 };
 
 export default function DataExtraction({ job, template }: DataExtractionProps) {
@@ -74,16 +25,8 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
   const rawExtractedData = job.extractedData as Record<string, any> || {};
   const normalizedData = normalizeExtractedData(rawExtractedData, template);
   const [editedData, setEditedData] = useState<Record<string, any>>(() => {
-    // Initialize with normalized data, ensuring we have all template placeholders
-    const initialData = { ...normalizedData };
-    if (template?.placeholders) {
-      template.placeholders.forEach((placeholder: string) => {
-        if (!(placeholder in initialData)) {
-          initialData[placeholder] = '';
-        }
-      });
-    }
-    return initialData;
+    // Initialize with LLM-extracted data as-is
+    return { ...normalizedData };
   });
   const { toast } = useToast();
 

@@ -42,7 +42,7 @@ export default function TemplatePreview({
           },
           body: JSON.stringify({
             extractedData,
-            templateHtml: templateStructure.html
+            templateHtml: templateStructure?.html
           })
         });
         
@@ -79,14 +79,7 @@ export default function TemplatePreview({
       let filledHtml = templateStructure.html;
       
       // Use the intelligent mapping or fall back to basic order
-      const placeholderOrder = intelligentMapping || [
-        "batch_number", "manufacturing_date", "expiry_date",
-        "_appearance__white_solid_powder_", "_molecular_weight_",
-        "_sodium_hyaluronate_content___95_", "_protein___01_", "_loss_on_drying___10_",
-        "_ph__5085_", "_staphylococcus_aureus__negative_", "_pseudomonas_aeruginosa__negative_",
-        "_heavy_metal__20_ppm_", "_total_bacteria___100_cfug_", "_yeast_and_molds___50_cfug_",
-        "issued_date", "test_result"
-      ];
+      const placeholderOrder = intelligentMapping || Object.keys(extractedData);
       
       // Replace {} placeholders in sequence with their corresponding extracted data
       let placeholderIndex = 0;

@@ -68,16 +68,7 @@ export async function extractPlaceholdersFromTemplate(filePath: string): Promise
   const MISTRAL_API_KEY = config.apiSettings.mistralApiKey || process.env.MISTRAL_API_KEY;
   
   if (!MISTRAL_API_KEY) {
-    console.warn("Mistral API key not found. Using fallback placeholders.");
-    return [
-      "product_name",
-      "batch_number", 
-      "manufacturing_date",
-      "expiration_date",
-      "purity",
-      "test_results",
-      "specifications"
-    ];
+    throw new Error("Mistral API key not found. Please configure API key to use intelligent field extraction.");
   }
 
   try {
@@ -90,19 +81,7 @@ export async function extractPlaceholdersFromTemplate(filePath: string): Promise
     
   } catch (error: any) {
     console.error('Template processing error:', error);
-    // Return common chemical document fields as fallback
-    return [
-      "product_name",
-      "batch_number", 
-      "manufacturing_date",
-      "expiration_date", 
-      "purity",
-      "test_results",
-      "specifications",
-      "supplier_name",
-      "lot_number",
-      "assay_results"
-    ];
+    throw new Error(`Template processing failed: ${error.message}`);
   }
 }
 
@@ -345,65 +324,8 @@ Response format (JSON only):
     
   } catch (error) {
     console.error('LLM processing error:', error);
-    // Create realistic fallback data based on CoA template structure
-    const fallbackData: Record<string, any> = {};
-    placeholders.forEach(placeholder => {
-      const field = placeholder.toLowerCase();
-      switch (field) {
-        case 'batch_number':
-          fallbackData[placeholder] = 'COA-2024-001';
-          break;
-        case 'manufacturing_date':
-          fallbackData[placeholder] = '15/01/2024';
-          break;
-        case 'expiry_date':
-          fallbackData[placeholder] = '15/01/2026';
-          break;
-        case 'appearance':
-          fallbackData[placeholder] = 'White solid powder';
-          break;
-        case 'molecular_weight':
-        case '_molecular_weight_':
-          fallbackData[placeholder] = '1.2 x 10⁶';
-          break;
-        case 'sodium_hyaluronate_content':
-          fallbackData[placeholder] = '98.5%';
-          break;
-        case 'protein':
-          fallbackData[placeholder] = '0.05%';
-          break;
-        case 'loss_on_drying':
-          fallbackData[placeholder] = '7.2%';
-          break;
-        case 'ph':
-          fallbackData[placeholder] = '6.8';
-          break;
-        case 'staphylococcus_aureus':
-          fallbackData[placeholder] = 'Negative';
-          break;
-        case 'pseudomonas_aeruginosa':
-          fallbackData[placeholder] = 'Negative';
-          break;
-        case 'heavy_metal':
-          fallbackData[placeholder] = '<10 ppm';
-          break;
-        case 'total_bacteria':
-          fallbackData[placeholder] = '<50 CFU/g';
-          break;
-        case 'yeast_and_molds':
-          fallbackData[placeholder] = '<25 CFU/g';
-          break;
-        case 'issued_date':
-          fallbackData[placeholder] = '20/01/2024';
-          break;
-        case 'test_result':
-          fallbackData[placeholder] = 'Conforms';
-          break;
-        default:
-          fallbackData[placeholder] = null;
-      }
-    });
-    return { data: fallbackData };
+    // Return empty data object - let LLM handle all extraction
+    throw new Error(`LLM processing failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -658,7 +580,7 @@ If a position cannot be mapped to any field, use null for that position.
     console.log('🧠 Mistral template mapping response:', content);
     
     // Extract JSON from the response
-    const jsonMatch = content.match(/\[(.*?)\]/s);
+    const jsonMatch = content.match(/\[(.*?)\]/);
     if (!jsonMatch) {
       throw new Error('No valid JSON array found in Mistral response');
     }
@@ -676,37 +598,17 @@ If a position cannot be mapped to any field, use null for that position.
 }
 
 function getFallbackMapping(placeholderCount: number, availableFields: string[]): string[] {
-  // Basic fallback mapping for common CoA template patterns
-  const commonOrder = [
-    "batch_number",
-    "manufacturing_date", 
-    "expiry_date",
-    "_appearance__white_solid_powder_",
-    "_molecular_weight_",
-    "_sodium_hyaluronate_content___95_",
-    "_protein___01_",
-    "_loss_on_drying___10_",
-    "_ph__5085_",
-    "_staphylococcus_aureus__negative_",
-    "_pseudomonas_aeruginosa__negative_",
-    "_heavy_metal__20_ppm_",
-    "_total_bacteria___100_cfug_",
-    "_yeast_and_molds___50_cfug_",
-    "issued_date",
-    "test_result"
-  ];
-  
+  // Use intelligent field distribution without hardcoded templates
   const mapping: string[] = [];
-  for (let i = 0; i < placeholderCount; i++) {
-    if (i < commonOrder.length && availableFields.includes(commonOrder[i])) {
-      mapping.push(commonOrder[i]);
-    } else {
-      // Try to find any remaining field
-      const remainingField = availableFields.find(field => !mapping.includes(field));
-      mapping.push(remainingField || null);
-    }
+  for (let i = 0; i < placeholderCount && i < availableFields.length; i++) {
+    mapping.push(availableFields[i]);
   }
   
-  console.log('📋 Using fallback mapping:', mapping);
+  // Fill remaining positions with 'null' if needed
+  while (mapping.length < placeholderCount) {
+    mapping.push('null');
+  }
+  
+  console.log('📋 Using intelligent field mapping:', mapping);
   return mapping;
 }
