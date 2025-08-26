@@ -87,7 +87,7 @@ async function processOCR(filePath: string, apiKey: string, ocrEndpoint: string 
 
 async function extractKeyValuePairs(text: string, placeholders: string[], apiKey: string, llmModel: string = "mistral-large-latest") {
   const prompt = `
-You are an expert in chemical document analysis. Extract the following information from the provided document text and return it as a JSON object.
+You are an expert in chemical document analysis. Your task is to extract EXACT values from the document text. You must preserve every symbol, unit, and formatting exactly as it appears.
 
 Required fields to extract:
 ${placeholders.map(p => `- ${p}`).join('\n')}
@@ -95,27 +95,51 @@ ${placeholders.map(p => `- ${p}`).join('\n')}
 Document text:
 ${text}
 
-CRITICAL EXTRACTION RULES:
-1. Extract EXACT values as they appear in the document - preserve all symbols, units, and formatting
-2. Preserve percentage symbols (%), scientific notation (x 10⁶), units (ppm, CFU/g, Da), and comparison operators (≤, ≥, <, >)
-3. For product names, extract the EXACT product name from the document header, not generic chemical names
-4. For batch numbers, extract the complete batch/lot number including any prefixes or suffixes
-5. For test results, extract the exact numerical values with their units and symbols as shown
-6. Do NOT convert or standardize units - keep them exactly as written
-7. Do NOT replace "Complies" with actual values - extract what is actually written
-8. Use the EXACT field names provided in the list above
-9. For fields not found, return null
-10. Return only valid JSON format
+CRITICAL EXTRACTION RULES - PRESERVE EVERYTHING EXACTLY:
+1. Extract values EXACTLY as written - do not modify, convert, or interpret anything
+2. Preserve ALL symbols: %, ≤, ≥, <, >, ±, ~, x, ÷, etc.
+3. Preserve ALL units: ppm, CFU/g, Da, mg/kg, μg/g, etc.
+4. Preserve ALL scientific notation: x 10⁶, x 10⁻³, E+06, etc.
+5. Preserve ALL formatting: spaces, hyphens, slashes, parentheses
+6. For percentages: always include the % symbol (e.g., "97.4%", "≤ 0.1%")
+7. For ranges: keep exact format (e.g., "(0.5 - 1.8) x 10⁶", "5.0-8.5")
+8. For comparison operators: keep exact spacing (e.g., "≤ 20 ppm", "< 100 CFU/g")
+9. For product names: extract from document header/title, not chemical descriptions
+10. For batch numbers: include ALL prefixes, suffixes, slashes (e.g., "NTCB/25042211K1")
+11. For dates: keep original format (DD-MM-YYYY, MM/DD/YYYY, etc.)
+12. If value not found, return null
+13. Return ONLY valid JSON
 
-Examples of correct extraction:
-- "97.4%" → "97.4%" (keep the % symbol)
-- "1.70 x 10⁶" → "1.70 x 10⁶" (keep scientific notation)
-- "≤20 ppm" → "≤20 ppm" (keep symbols and units)
-- "COSCARE-H ACID" → "COSCARE-H ACID" (exact product name)
+CRITICAL: EXTRACT TEST RESULTS, NOT SPECIFICATIONS
+- Look for tables with columns like "Test Items", "Specifications", "Results"
+- Always extract from the "Results" column, NOT the "Specifications" column
+- If a result shows "Complies", look for the actual specification value and extract that
 
-Response format:
+EXAMPLES - EXACT EXTRACTION:
+Document shows: 
+| Test Item | Specification | Result |
+| Sodium hyaluronate content | ≥ 95% | 97.4% |
+Extract: "97.4%" (from Results column, with % symbol)
+
+Document shows:
+| Molecular weight | (0.5 - 1.8) x 10⁶ | 1.70 x 10⁶ |
+Extract: "1.70 x 10⁶" (from Results column, exact scientific notation)
+
+Document shows:
+| Heavy metal | ≤20 ppm | ≤20 ppm |
+Extract: "≤20 ppm" (from Results column, exact with symbol and unit)
+
+Document shows:
+| Total Bacteria | < 100 CFU/g | Complies |
+Extract: "< 100 CFU/g" (use specification since result is "Complies")
+
+Document shows:
+| Appearance | White solid powder | White powder |
+Extract: "White powder" (from Results column, exact text)
+
+Response format (JSON only):
 {
-  "field_name": "exact_extracted_value_or_null"
+  "field_name": "exact_value_or_null"
 }
 `;
 
@@ -152,67 +176,8 @@ Response format:
       throw new Error('Invalid JSON response from LLM');
     }
     
-  } catch (error) {
-    console.error('LLM processing error:', error);
-    // Fallback data for development/testing
-    const fallbackData: Record<string, any> = {};
-    placeholders.forEach(placeholder => {
-      switch (placeholder) {
-        case 'product_name':
-          fallbackData[placeholder] = 'COSCARE-H ACID';
-          break;
-        case 'inci_name':
-          fallbackData[placeholder] = 'Sodium Hyaluronate';
-          break;
-        case 'batch_number':
-          fallbackData[placeholder] = 'NTCB/25042211K1';
-          break;
-        case 'manufacturing_date':
-          fallbackData[placeholder] = '22-04-2025';
-          break;
-        case 'expiry_date':
-          fallbackData[placeholder] = '21-04-2027';
-          break;
-        case 'appearance':
-          fallbackData[placeholder] = 'White powder';
-          break;
-        case 'molecular_weight':
-          fallbackData[placeholder] = '1.70 x 10⁶';
-          break;
-        case 'sodium_hyaluronate_content':
-          fallbackData[placeholder] = '97.4%';
-          break;
-        case 'protein':
-          fallbackData[placeholder] = '0.04%';
-          break;
-        case 'loss_on_drying':
-          fallbackData[placeholder] = '6.8%';
-          break;
-        case 'ph':
-          fallbackData[placeholder] = '6.8';
-          break;
-        case 'staphylococcus_aureus':
-          fallbackData[placeholder] = 'Negative';
-          break;
-        case 'pseudomonas_aeruginosa':
-          fallbackData[placeholder] = 'Negative';
-          break;
-        case 'heavy_metal':
-          fallbackData[placeholder] = '≤20 ppm';
-          break;
-        case 'total_bacteria':
-          fallbackData[placeholder] = '< 100 CFU/g';
-          break;
-        case 'yeast_and_molds':
-          fallbackData[placeholder] = '< 50 CFU/g';
-          break;
-        case 'issued_date':
-          fallbackData[placeholder] = '24-04-2025';
-          break;
-        default:
-          fallbackData[placeholder] = null;
-      }
-    });
-    return { data: fallbackData };
+  } catch (error: any) {
+    console.error('Mistral API extraction failed:', error);
+    throw new Error(`Failed to extract data from document: ${error.message || 'Unknown error'}`);
   }
 }
