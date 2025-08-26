@@ -73,7 +73,18 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const rawExtractedData = job.extractedData as Record<string, any> || {};
   const normalizedData = normalizeExtractedData(rawExtractedData, template);
-  const [editedData, setEditedData] = useState<Record<string, any>>(normalizedData);
+  const [editedData, setEditedData] = useState<Record<string, any>>(() => {
+    // Initialize with normalized data, ensuring we have all template placeholders
+    const initialData = { ...normalizedData };
+    if (template?.placeholders) {
+      template.placeholders.forEach((placeholder: string) => {
+        if (!(placeholder in initialData)) {
+          initialData[placeholder] = '';
+        }
+      });
+    }
+    return initialData;
+  });
   const { toast } = useToast();
 
   const handleEdit = (field: string, value: string) => {
@@ -81,8 +92,15 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
     setEditingField(null);
     toast({
       title: "Field updated",
-      description: `${field} has been updated successfully`,
+      description: `${formatFieldName(field)} has been updated successfully`,
     });
+  };
+
+  const formatFieldName = (field: string) => {
+    return field
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   const generateDocumentMutation = useMutation({
@@ -173,13 +191,6 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
         {value || 'Not found in source document'}
       </p>
     );
-  };
-
-  const formatFieldName = (field: string) => {
-    return field
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
   };
 
   const extractedFields = Object.entries(editedData);

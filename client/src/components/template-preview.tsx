@@ -48,9 +48,14 @@ export default function TemplatePreview({
       // Use the actual template HTML structure and fill in the extracted values
       let filledHtml = templateStructure.html;
       
-      // Replace placeholders with extracted data
-      Object.keys(extractedData).forEach(key => {
-        const value = extractedData[key] || `{${key}}`;
+      // Replace placeholders with extracted data, prioritizing non-empty values
+      const allPlaceholders = new Set([
+        ...Object.keys(extractedData),
+        ...(template.placeholders || [])
+      ]);
+
+      allPlaceholders.forEach(key => {
+        const value = extractedData[key] || ''; // Use empty string instead of showing placeholder
         const placeholderPatterns = [
           new RegExp(`\\{${key}\\}`, 'g'),
           new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
