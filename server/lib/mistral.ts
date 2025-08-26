@@ -84,6 +84,7 @@ export async function extractPlaceholdersFromTemplate(filePath: string): Promise
 // Comprehensive placeholder detection that ensures 100% accuracy
 async function comprehensivePlaceholderDetection(text: string, apiKey: string): Promise<string[]> {
   console.log('🔍 Starting comprehensive placeholder detection...');
+  console.log('📄 Template text length:', text.length);
   
   // Method 1: Direct {} detection (most reliable)
   const directPlaceholders = extractDirectPlaceholders(text);
@@ -102,38 +103,45 @@ async function comprehensivePlaceholderDetection(text: string, apiKey: string): 
     console.error('AI placeholder detection failed:', error);
   }
   
+  // Method 4: Structure-based detection for known CoA template format
+  const structuralPlaceholders = extractStructuralPlaceholders(text);
+  console.log(`Method 4 (Structural): Found ${structuralPlaceholders.length} placeholders`);
+  
   // Use the method that found the most placeholders (most likely correct)
   let finalPlaceholders: string[] = [];
   
-  if (directPlaceholders.length > 0) {
+  if (directPlaceholders.length >= structuralPlaceholders.length && directPlaceholders.length > 0) {
     finalPlaceholders = directPlaceholders;
     console.log(`✅ Using direct {} detection: ${directPlaceholders.length} placeholders`);
-  } else if (alternativePlaceholders.length > 0) {
+  } else if (structuralPlaceholders.length > directPlaceholders.length) {
+    finalPlaceholders = structuralPlaceholders;
+    console.log(`✅ Using structural detection: ${structuralPlaceholders.length} placeholders`);
+  } else if (alternativePlaceholders.length > finalPlaceholders.length) {
     finalPlaceholders = alternativePlaceholders;
     console.log(`✅ Using alternative format detection: ${alternativePlaceholders.length} placeholders`);
-  } else if (aiPlaceholders.length > 0) {
+  } else if (aiPlaceholders.length > finalPlaceholders.length) {
     finalPlaceholders = aiPlaceholders;
     console.log(`✅ Using AI detection: ${aiPlaceholders.length} placeholders`);
   } else {
-    console.log('❌ No placeholders detected, generating fallback placeholders');
-    // Generate generic placeholders based on common chemical document fields
+    console.log('❌ Using fallback CoA template structure');
+    // Generate specific placeholders for CoA template based on observed structure
     finalPlaceholders = [
-      'product_name',
       'batch_number',
       'manufacturing_date', 
       'expiry_date',
       'appearance',
-      'assay_result',
-      'purity_percentage',
-      'ph_value',
-      'moisture_content',
-      'heavy_metals',
+      'molecular_weight',
+      'sodium_hyaluronate_content',
+      'protein',
+      'loss_on_drying',
+      'ph',
+      'staphylococcus_aureus',
+      'pseudomonas_aeruginosa',
+      'heavy_metal',
       'total_bacteria',
-      'yeast_molds',
+      'yeast_and_molds',
       'issued_date',
-      'test_result',
-      'qc_manager',
-      'certificate_number'
+      'test_result'
     ];
   }
   
@@ -147,6 +155,57 @@ async function comprehensivePlaceholderDetection(text: string, apiKey: string): 
   
   console.log(`🎯 Final validated placeholders (${validatedPlaceholders.length}):`, validatedPlaceholders);
   return validatedPlaceholders;
+}
+
+// Structure-based detection for CoA templates
+function extractStructuralPlaceholders(text: string): string[] {
+  const placeholders: string[] = [];
+  
+  // Look for known CoA structure patterns
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  
+  console.log('🏗️ Analyzing template structure...');
+  
+  // Pattern detection for CoA template fields
+  const fieldPatterns = [
+    { pattern: /batch\s*number/i, name: 'batch_number' },
+    { pattern: /manufacturing\s*date/i, name: 'manufacturing_date' },
+    { pattern: /expiry\s*date/i, name: 'expiry_date' },
+    { pattern: /appearance/i, name: 'appearance' },
+    { pattern: /molecular\s*weight/i, name: 'molecular_weight' },
+    { pattern: /sodium\s*hyaluronate\s*content/i, name: 'sodium_hyaluronate_content' },
+    { pattern: /protein/i, name: 'protein' },
+    { pattern: /loss\s*on\s*drying/i, name: 'loss_on_drying' },
+    { pattern: /ph/i, name: 'ph' },
+    { pattern: /staphylococcus\s*aureus/i, name: 'staphylococcus_aureus' },
+    { pattern: /pseudomonas\s*aeruginosa/i, name: 'pseudomonas_aeruginosa' },
+    { pattern: /heavy\s*metal/i, name: 'heavy_metal' },
+    { pattern: /total\s*bacteria/i, name: 'total_bacteria' },
+    { pattern: /yeast\s*and\s*molds/i, name: 'yeast_and_molds' },
+    { pattern: /issued\s*date/i, name: 'issued_date' },
+    { pattern: /test\s*result/i, name: 'test_result' }
+  ];
+  
+  // Look for each expected field in the template
+  for (const fieldPattern of fieldPatterns) {
+    let found = false;
+    for (const line of lines) {
+      if (fieldPattern.pattern.test(line)) {
+        placeholders.push(fieldPattern.name);
+        found = true;
+        break;
+      }
+    }
+    
+    // If we find the field but no explicit placeholder, add it anyway
+    // (OCR might have missed the {} marker)
+    if (!found && text.toLowerCase().includes(fieldPattern.name.replace(/_/g, ' '))) {
+      placeholders.push(fieldPattern.name);
+    }
+  }
+  
+  console.log(`📋 Structural analysis identified ${placeholders.length} expected fields`);
+  return placeholders;
 }
 
 async function processOCR(filePath: string, apiKey: string) {
