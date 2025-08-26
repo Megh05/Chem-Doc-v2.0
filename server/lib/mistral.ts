@@ -81,24 +81,6 @@ export async function extractPlaceholdersFromTemplate(filePath: string): Promise
   }
 }
 
-// AI-powered placeholder detection using only Mistral OCR
-async function comprehensivePlaceholderDetection(text: string, apiKey: string): Promise<string[]> {
-  console.log('🤖 Starting Mistral AI-powered placeholder detection...');
-  console.log('📄 Template text length:', text.length);
-  
-  // Use only Mistral AI for intelligent placeholder identification
-  let aiPlaceholders: string[] = [];
-  try {
-    aiPlaceholders = await mistralTemplatePlaceholderAnalysis(text, apiKey);
-    console.log(`🎯 Mistral AI detected ${aiPlaceholders.length} placeholders:`, aiPlaceholders);
-  } catch (error) {
-    console.error('Mistral AI placeholder detection failed:', error);
-    throw new Error(`Mistral AI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  
-  return aiPlaceholders;
-}
-
 // Advanced Mistral AI analysis for template placeholder identification
 async function mistralTemplatePlaceholderAnalysis(text: string, apiKey: string): Promise<string[]> {
   const config = loadConfig();
@@ -207,6 +189,24 @@ CRITICAL: Analyze the entire template structure and identify ALL placeholder pos
     console.error('Mistral AI analysis error:', error);
     throw new Error(`Mistral AI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+// AI-powered placeholder detection using only Mistral OCR
+async function comprehensivePlaceholderDetection(text: string, apiKey: string): Promise<string[]> {
+  console.log('🤖 Starting Mistral AI-powered placeholder detection...');
+  console.log('📄 Template text length:', text.length);
+  
+  // Use only Mistral AI for intelligent placeholder identification
+  let aiPlaceholders: string[] = [];
+  try {
+    aiPlaceholders = await mistralTemplatePlaceholderAnalysis(text, apiKey);
+    console.log(`🎯 Mistral AI detected ${aiPlaceholders.length} placeholders:`, aiPlaceholders);
+  } catch (error) {
+    console.error('Mistral AI placeholder detection failed:', error);
+    throw new Error(`Mistral AI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  
+  return aiPlaceholders;
 }
 
 // Structure-based detection for CoA templates
