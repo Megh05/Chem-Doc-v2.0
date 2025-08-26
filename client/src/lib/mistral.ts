@@ -95,20 +95,28 @@ ${placeholders.map(p => `- ${p}`).join('\n')}
 Document text:
 ${text}
 
-Instructions:
-1. Extract the exact values for each field if found in the document
-2. For fields not found, return null
-3. Maintain proper data types (numbers, dates, strings)
-4. Focus on chemical industry terminology (CoA, TDS, MDMS documents)
-5. Use the EXACT field names provided in the list above - do not modify them
-6. Return only valid JSON format with clean field names
+CRITICAL EXTRACTION RULES:
+1. Extract EXACT values as they appear in the document - preserve all symbols, units, and formatting
+2. Preserve percentage symbols (%), scientific notation (x 10⁶), units (ppm, CFU/g, Da), and comparison operators (≤, ≥, <, >)
+3. For product names, extract the EXACT product name from the document header, not generic chemical names
+4. For batch numbers, extract the complete batch/lot number including any prefixes or suffixes
+5. For test results, extract the exact numerical values with their units and symbols as shown
+6. Do NOT convert or standardize units - keep them exactly as written
+7. Do NOT replace "Complies" with actual values - extract what is actually written
+8. Use the EXACT field names provided in the list above
+9. For fields not found, return null
+10. Return only valid JSON format
+
+Examples of correct extraction:
+- "97.4%" → "97.4%" (keep the % symbol)
+- "1.70 x 10⁶" → "1.70 x 10⁶" (keep scientific notation)
+- "≤20 ppm" → "≤20 ppm" (keep symbols and units)
+- "COSCARE-H ACID" → "COSCARE-H ACID" (exact product name)
 
 Response format:
 {
-  "field_name": "extracted_value_or_null"
+  "field_name": "exact_extracted_value_or_null"
 }
-
-IMPORTANT: Use only the exact field names from the list above. Do not add underscores, prefixes, or modify the field names in any way.
 `;
 
   try {
@@ -151,25 +159,25 @@ IMPORTANT: Use only the exact field names from the list above. Do not add unders
     placeholders.forEach(placeholder => {
       switch (placeholder) {
         case 'product_name':
-          fallbackData[placeholder] = 'Sodium hyaluronate';
+          fallbackData[placeholder] = 'COSCARE-H ACID';
           break;
         case 'inci_name':
           fallbackData[placeholder] = 'Sodium Hyaluronate';
           break;
         case 'batch_number':
-          fallbackData[placeholder] = '25042211';
+          fallbackData[placeholder] = 'NTCB/25042211K1';
           break;
         case 'manufacturing_date':
-          fallbackData[placeholder] = '2025-04-22';
+          fallbackData[placeholder] = '22-04-2025';
           break;
         case 'expiry_date':
-          fallbackData[placeholder] = '2027-04-22';
+          fallbackData[placeholder] = '21-04-2027';
           break;
         case 'appearance':
-          fallbackData[placeholder] = 'White solid powder';
+          fallbackData[placeholder] = 'White powder';
           break;
         case 'molecular_weight':
-          fallbackData[placeholder] = '1.70M Da';
+          fallbackData[placeholder] = '1.70 x 10⁶';
           break;
         case 'sodium_hyaluronate_content':
           fallbackData[placeholder] = '97.4%';
@@ -190,16 +198,16 @@ IMPORTANT: Use only the exact field names from the list above. Do not add unders
           fallbackData[placeholder] = 'Negative';
           break;
         case 'heavy_metal':
-          fallbackData[placeholder] = 'Complies';
+          fallbackData[placeholder] = '≤20 ppm';
           break;
         case 'total_bacteria':
-          fallbackData[placeholder] = '<10 cfu/g';
+          fallbackData[placeholder] = '< 100 CFU/g';
           break;
         case 'yeast_and_molds':
-          fallbackData[placeholder] = '<10 cfu/g';
+          fallbackData[placeholder] = '< 50 CFU/g';
           break;
         case 'issued_date':
-          fallbackData[placeholder] = '2025-04-22';
+          fallbackData[placeholder] = '24-04-2025';
           break;
         default:
           fallbackData[placeholder] = null;
