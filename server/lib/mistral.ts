@@ -711,13 +711,38 @@ If a position cannot be mapped to any field, use null for that position.
     
     console.log('🧠 Mistral template mapping response:', content);
     
-    // Extract JSON from the response
-    const jsonMatch = content.match(/\[(.*?)\]/);
-    if (!jsonMatch) {
+    // Extract JSON array from the response (handle markdown code blocks)
+    let cleanContent = content.trim();
+    
+    // Remove markdown code blocks if present
+    if (cleanContent.includes('```json')) {
+      const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonBlockMatch) {
+        cleanContent = jsonBlockMatch[1].trim();
+      }
+    } else if (cleanContent.includes('```')) {
+      const codeBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        cleanContent = codeBlockMatch[1].trim();
+      }
+    }
+    
+    // Look for JSON array pattern
+    const arrayMatch = cleanContent.match(/\[[\s\S]*?\]/);
+    if (!arrayMatch) {
       throw new Error('No valid JSON array found in Mistral response');
     }
     
-    const mappingOrder = JSON.parse(`[${jsonMatch[1]}]`);
+    let jsonArrayString = arrayMatch[0];
+    
+    // Clean up the JSON string
+    jsonArrayString = jsonArrayString
+      .replace(/\n/g, ' ')           // Remove newlines
+      .replace(/\s+/g, ' ')          // Normalize spaces
+      .replace(/,\s*]/g, ']')        // Remove trailing commas
+      .trim();
+    
+    const mappingOrder = JSON.parse(jsonArrayString);
     console.log('🎯 Intelligent field mapping order:', mappingOrder);
     
     return mappingOrder;
