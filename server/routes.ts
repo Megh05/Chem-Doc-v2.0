@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import htmlPdf from "html-pdf-node";
+import officegen from "officegen";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
@@ -223,8 +225,229 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document generation endpoint
+  app.post("/api/generate-document/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const { format, data } = req.body;
+      
+      const job = await storage.getProcessingJob(jobId);
+      if (!job) {
+        return res.status(404).json({ message: "Processing job not found" });
+      }
+
+      const template = await storage.getTemplate(job.templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (format === 'pdf') {
+        const htmlContent = generateHTMLContent(template, data);
+        const options = { 
+          format: 'A4',
+          margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
+        };
+        
+        const pdfBuffer = await htmlPdf.generatePdf({ content: htmlContent }, options);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
+        res.send(pdfBuffer);
+        
+      } else if (format === 'docx') {
+        const docx = officegen('docx');
+        
+        // Add title
+        const title = docx.createP();
+        title.addText('CERTIFICATE OF ANALYSIS', { font_face: 'Arial', font_size: 16, bold: true });
+        title.options.align = 'center';
+        
+        // Add content
+        const content = generateDocxContent(template, data);
+        content.forEach(line => {
+          const p = docx.createP();
+          p.addText(line.text, line.options || { font_face: 'Arial', font_size: 11 });
+        });
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.docx"`);
+        
+        docx.generate(res);
+        
+      } else {
+        return res.status(400).json({ message: "Invalid format. Use 'pdf' or 'docx'" });
+      }
+      
+    } catch (error: any) {
+      console.error('Document generation error:', error);
+      res.status(500).json({ message: "Failed to generate document", error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
+}
+
+function generateHTMLContent(template: any, data: Record<string, any>): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Certificate of Analysis</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .field-row { display: flex; justify-content: space-between; margin: 10px 0; }
+        .label { font-weight: bold; }
+        .value { color: #2563eb; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f5f5f5; font-weight: bold; }
+        .footer { text-align: center; margin-top: 30px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="title">CERTIFICATE OF ANALYSIS</div>
+      </div>
+      
+      <div class="field-row">
+        <span class="label">Product Name:</span>
+        <span class="value">${data.product_name || 'COSCARE-H ACID'}</span>
+      </div>
+      
+      <div class="field-row">
+        <span class="label">INCI Name:</span>
+        <span class="value">${data.inci_name || 'Sodium Hyaluronate'}</span>
+      </div>
+      
+      <div class="field-row">
+        <span class="label">Batch Number:</span>
+        <span class="value">${data.batch_number || ''}</span>
+      </div>
+      
+      <div class="field-row">
+        <span class="label">Manufacturing Date:</span>
+        <span class="value">${data.manufacturing_date || ''}</span>
+      </div>
+      
+      <div class="field-row">
+        <span class="label">Expiry Date:</span>
+        <span class="value">${data.expiry_date || ''}</span>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Test Items</th>
+            <th>Specifications</th>
+            <th>Results</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Appearance</td>
+            <td>White solid powder</td>
+            <td>${data.appearance || ''}</td>
+          </tr>
+          <tr>
+            <td>Molecular weight</td>
+            <td>(0.5 – 1.8) x 10⁶</td>
+            <td>${data.molecular_weight || ''}</td>
+          </tr>
+          <tr>
+            <td>Sodium hyaluronate content</td>
+            <td>≥ 95%</td>
+            <td>${data.sodium_hyaluronate_content || ''}</td>
+          </tr>
+          <tr>
+            <td>Protein</td>
+            <td>≤ 0.1%</td>
+            <td>${data.protein || ''}</td>
+          </tr>
+          <tr>
+            <td>Loss on drying</td>
+            <td>≤ 10%</td>
+            <td>${data.loss_on_drying || ''}</td>
+          </tr>
+          <tr>
+            <td>pH</td>
+            <td>5.0-8.5</td>
+            <td>${data.ph || ''}</td>
+          </tr>
+          <tr>
+            <td>Staphylococcus Aureus</td>
+            <td>Negative</td>
+            <td>${data.staphylococcus_aureus || ''}</td>
+          </tr>
+          <tr>
+            <td>Pseudomonas Aeruginosa</td>
+            <td>Negative</td>
+            <td>${data.pseudomonas_aeruginosa || ''}</td>
+          </tr>
+          <tr>
+            <td>Heavy metal</td>
+            <td>≤20 ppm</td>
+            <td>${data.heavy_metal || ''}</td>
+          </tr>
+          <tr>
+            <td>Total Bacteria</td>
+            <td>&lt; 100 CFU/g</td>
+            <td>${data.total_bacteria || ''}</td>
+          </tr>
+          <tr>
+            <td>Yeast and molds</td>
+            <td>&lt; 50 CFU/g</td>
+            <td>${data.yeast_and_molds || ''}</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="field-row">
+        <span class="label">ISSUED DATE:</span>
+        <span class="value">${data.issued_date || ''}</span>
+      </div>
+      
+      <div class="field-row">
+        <span class="label">TEST RESULT:</span>
+        <span class="value">${data.test_result || ''}</span>
+      </div>
+      
+      <div class="footer">
+        <strong>Nano Tech Chemical Brothers Pvt. Ltd.</strong>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function generateDocxContent(template: any, data: Record<string, any>) {
+  return [
+    { text: '\n' },
+    { text: `Product Name: ${data.product_name || 'COSCARE-H ACID'}` },
+    { text: `INCI Name: ${data.inci_name || 'Sodium Hyaluronate'}` },
+    { text: `Batch Number: ${data.batch_number || ''}` },
+    { text: `Manufacturing Date: ${data.manufacturing_date || ''}` },
+    { text: `Expiry Date: ${data.expiry_date || ''}` },
+    { text: '\n\nTest Results:' },
+    { text: `Appearance: ${data.appearance || ''}` },
+    { text: `Molecular weight: ${data.molecular_weight || ''}` },
+    { text: `Sodium hyaluronate content: ${data.sodium_hyaluronate_content || ''}` },
+    { text: `Protein: ${data.protein || ''}` },
+    { text: `Loss on drying: ${data.loss_on_drying || ''}` },
+    { text: `pH: ${data.ph || ''}` },
+    { text: `Staphylococcus Aureus: ${data.staphylococcus_aureus || ''}` },
+    { text: `Pseudomonas Aeruginosa: ${data.pseudomonas_aeruginosa || ''}` },
+    { text: `Heavy metal: ${data.heavy_metal || ''}` },
+    { text: `Total Bacteria: ${data.total_bacteria || ''}` },
+    { text: `Yeast and molds: ${data.yeast_and_molds || ''}` },
+    { text: '\n' },
+    { text: `ISSUED DATE: ${data.issued_date || ''}` },
+    { text: `TEST RESULT: ${data.test_result || ''}` },
+    { text: '\n\nNano Tech Chemical Brothers Pvt. Ltd.', options: { bold: true } }
+  ];
 }
 
 async function processDocumentInBackground(jobId: string) {

@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import TemplatePreview from "./template-preview";
 import type { ProcessingJob, Template } from "@shared/schema";
 
 interface DataExtractionProps {
@@ -25,11 +28,36 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
     });
   };
 
-  const handleGenerateDocument = () => {
-    toast({
-      title: "Document generated",
-      description: "Your document has been generated and is ready for download",
-    });
+  const generateDocumentMutation = useMutation({
+    mutationFn: async ({ format, jobId }: { format: 'pdf' | 'docx', jobId: string }) => {
+      const response = await apiRequest('POST', `/api/generate-document/${jobId}`, { format, data: editedData });
+      return response.blob();
+    },
+    onSuccess: (blob, variables) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `generated_document.${variables.format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast({
+        title: "Document downloaded",
+        description: `Your ${variables.format.toUpperCase()} document has been downloaded successfully`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Download failed",
+        description: error.message || "Failed to generate document",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleGenerateDocument = (format: 'pdf' | 'docx' = 'pdf') => {
+    generateDocumentMutation.mutate({ format, jobId: job.id });
   };
 
   const getFieldStatus = (field: string, value: any) => {
@@ -136,54 +164,17 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
 
         {/* Template Preview */}
         <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-4">Template Preview</h4>
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 min-h-96">
-            <div className="text-center mb-4">
-              <h3 className="font-bold text-gray-900">ACME Chemical Corp</h3>
-              <p className="text-sm text-gray-600">Certificate of Analysis</p>
+          {template ? (
+            <TemplatePreview
+              template={template}
+              extractedData={editedData}
+              onDownload={handleGenerateDocument}
+            />
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 min-h-96 flex items-center justify-center">
+              <p className="text-gray-500">Template not found</p>
             </div>
-
-            <div className="space-y-3 text-sm">
-              {extractedFields.slice(0, 6).map(([field, value]) => (
-                <div key={field} className="flex justify-between">
-                  <span className="font-medium">{formatFieldName(field)}:</span>
-                  {value ? (
-                    <span className="text-primary-600 font-medium" data-testid={`preview-${field}`}>
-                      {value}
-                    </span>
-                  ) : (
-                    <span
-                      className="text-warning-600 bg-warning-100 px-2 py-1 rounded text-xs"
-                      data-testid={`preview-missing-${field}`}
-                    >
-                      {`{${field}}`}
-                    </span>
-                  )}
-                </div>
-              ))}
-              
-              <div className="mt-4 pt-3 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
-                  Test Results and additional data fields will be populated here...
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex space-x-2">
-            <Button
-              className="flex-1"
-              onClick={handleGenerateDocument}
-              data-testid="button-generate-document"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Generate Document
-            </Button>
-            <Button variant="outline" data-testid="button-full-preview">
-              <Eye className="w-4 h-4 mr-2" />
-              Full Preview
-            </Button>
-          </div>
+          )}
         </div>
       </div>
     </Card>

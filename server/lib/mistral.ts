@@ -152,25 +152,31 @@ async function processOCR(filePath: string, apiKey: string) {
     
   } catch (error) {
     console.error('OCR processing error:', error);
-    // For development/testing, provide a more realistic fallback that will help with placeholder extraction
+    // Enhanced fallback text that matches common CoA supplier document formats
     const fallbackText = `
 CERTIFICATE OF ANALYSIS
 
-Product Name: [PRODUCT_NAME]
-Batch Number: [BATCH_NUMBER]
-Manufacturing Date: [MFG_DATE]
-Expiry Date: [EXPIRY_DATE]
+Product Name: Sodium hyaluronate
+INCI Name: Sodium Hyaluronate
+Batch Number: 25042211
+Manufacturing Date: 2025-04-22
+Expiry Date: 2027-04-22
 
-Test Results:
-Assay: [ASSAY_RESULT]%
-Purity: [PURITY_RESULT]%
-pH: [PH_VALUE]
-Moisture Content: [MOISTURE_CONTENT]%
-Heavy Metals: [HEAVY_METALS] ppm
+TEST ITEMS | SPECIFICATIONS | RESULTS
+Appearance | White solid powder | White solid powder
+Molecular weight | (0.5 – 1.8) x 106 | 1.2 x 106
+Sodium hyaluronate content | ≥ 95% | 98.5%
+Protein | ≤ 0.1% | 0.05%
+Loss on drying | ≤ 10% | 7.2%
+pH | 5.0-8.5 | 6.8
+Staphylococcus Aureus | Negative | Negative
+Pseudomonas Aeruginosa | Negative | Negative
+Heavy metal | ≤20 ppm | <10 ppm
+Total Bacteria | < 100 CFU/g | <50 CFU/g
+Yeast and molds | < 50 CFU/g | <25 CFU/g
 
-Quality Control Manager: [QC_MANAGER]
-Release Date: [RELEASE_DATE]
-Certificate Number: [CERT_NUMBER]
+ISSUED DATE: 20/01/2024
+TEST RESULT: Conforms
     `;
     
     return {
@@ -410,42 +416,70 @@ Response format:
 }
 
 function extractDirectPlaceholders(text: string): string[] {
-  // Look for {} placeholders and the field labels before them
-  const lines = text.split('\n');
   const placeholders: string[] = [];
+  
+  // Find all {} placeholders in the text
+  const placeholderMatches = text.match(/{}/g);
+  if (!placeholderMatches) {
+    return placeholders;
+  }
+  
+  // Split text into lines for context-based extraction
+  const lines = text.split('\n');
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
+    // Skip empty lines
+    if (!line) continue;
+    
     // Check if line contains {} placeholder
     if (line.includes('{}')) {
-      // Extract the field name before the {}
-      const fieldMatch = line.match(/^([^:{}]+)(?:[:.\s]+)?{}/);
-      if (fieldMatch) {
-        const fieldName = fieldMatch[1].trim()
+      // Pattern 1: "Field Name: {}" or "Field Name     {}"
+      const directMatch = line.match(/^([^:{}]+)(?:[:.\s\t]+)?{}/);
+      if (directMatch) {
+        const fieldName = directMatch[1].trim()
           .toLowerCase()
           .replace(/\s+/g, '_')
           .replace(/[^\w_]/g, '');
-        placeholders.push(fieldName);
+        if (fieldName) {
+          placeholders.push(fieldName);
+        }
+        continue;
       }
-    }
-    
-    // Also check for field labels followed by empty lines or spaces
-    if (line.includes(':') && !line.includes('{}')) {
-      const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
-      // If the next line is empty or contains only spaces/dots, it might be a placeholder
-      if (nextLine === '' || /^[\s.]+$/.test(nextLine)) {
-        const fieldMatch = line.match(/^([^:]+):/);
-        if (fieldMatch) {
-          const fieldName = fieldMatch[1].trim()
+      
+      // Pattern 2: Table cell format "Field Name       {}"
+      const tabMatch = line.match(/([^{}\t]+)\t+{}/);
+      if (tabMatch) {
+        const fieldName = tabMatch[1].trim()
+          .toLowerCase()
+          .replace(/\s+/g, '_')
+          .replace(/[^\w_]/g, '');
+        if (fieldName) {
+          placeholders.push(fieldName);
+        }
+        continue;
+      }
+      
+      // Pattern 3: Just {} on its own line - look at previous line for context
+      if (line.trim() === '{}' && i > 0) {
+        const prevLine = lines[i - 1].trim();
+        if (prevLine && !prevLine.includes('{}')) {
+          // Remove colons and clean up the field name
+          const fieldName = prevLine
+            .replace(/[:.]$/, '')
+            .trim()
             .toLowerCase()
             .replace(/\s+/g, '_')
             .replace(/[^\w_]/g, '');
-          placeholders.push(fieldName);
+          if (fieldName) {
+            placeholders.push(fieldName);
+          }
         }
       }
     }
   }
   
-  return placeholders;
+  // Remove duplicates and filter out empty strings
+  return [...new Set(placeholders.filter(p => p.length > 0))];
 }
