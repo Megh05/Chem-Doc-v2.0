@@ -115,14 +115,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Template not found" });
       }
 
-      const filePath = path.join(uploadDir, template.fileName);
-      if (!fs.existsSync(filePath)) {
+      // For the uploaded templates, look for the file by scanning the uploads directory
+      const files = fs.readdirSync(uploadDir);
+      let targetFile: string | null = null;
+
+      // First try to find by exact filename
+      if (fs.existsSync(path.join(uploadDir, template.fileName))) {
+        targetFile = template.fileName;
+      } else {
+        // For uploaded files, find by scanning directory and matching size
+        for (const file of files) {
+          const filePath = path.join(uploadDir, file);
+          const stats = fs.statSync(filePath);
+          if (stats.size === template.fileSize) {
+            targetFile = file;
+            break;
+          }
+        }
+      }
+
+      if (!targetFile) {
         return res.status(404).json({ message: "Template file not found" });
       }
 
+      const filePath = path.join(uploadDir, targetFile);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${template.fileName}"`);
-      res.sendFile(filePath);
+      res.sendFile(path.resolve(filePath));
     } catch (error: any) {
       res.status(500).json({ message: "Failed to download template", error: error.message });
     }
