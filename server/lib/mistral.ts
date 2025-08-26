@@ -92,31 +92,18 @@ async function processOCR(filePath: string, apiKey: string) {
     const mimeType = filePath.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
     const dataUrl = `data:${mimeType};base64,${base64File}`;
     
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    const response = await fetch('https://api.mistral.ai/v1/ocr', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'pixtral-12b-2409',
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Extract all text content from this document. Focus on identifying data fields, placeholders, and variable content that would need to be filled in.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: dataUrl
-              }
-            }
-          ]
-        }],
-        temperature: 0.1,
-        max_tokens: 4000
+        model: 'mistral-ocr-latest',
+        document: {
+          type: 'document_url',
+          document_url: dataUrl
+        }
       })
     });
 
@@ -127,7 +114,11 @@ async function processOCR(filePath: string, apiKey: string) {
     }
 
     const result = await response.json();
-    const extractedText = result.choices?.[0]?.message?.content || '';
+    // Extract text from all pages
+    let extractedText = '';
+    if (result.pages && Array.isArray(result.pages)) {
+      extractedText = result.pages.map((page: any) => page.markdown || '').join('\n\n');
+    }
     
     return {
       text: extractedText,

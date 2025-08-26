@@ -24,7 +24,7 @@ export interface AppConfig {
 const defaultConfig: AppConfig = {
   apiSettings: {
     mistralApiKey: "",
-    ocrEndpoint: "https://api.mistral.ai/v1/chat/completions",
+    ocrEndpoint: "https://api.mistral.ai/v1/ocr",
     llmModel: "mistral-large-latest"
   },
   processingSettings: {
