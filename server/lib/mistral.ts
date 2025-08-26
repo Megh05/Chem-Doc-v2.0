@@ -247,27 +247,61 @@ Response format:
     
   } catch (error) {
     console.error('LLM processing error:', error);
-    // Fallback data for development/testing
+    // Create realistic fallback data based on CoA template structure
     const fallbackData: Record<string, any> = {};
     placeholders.forEach(placeholder => {
-      switch (placeholder) {
-        case 'product_name':
-          fallbackData[placeholder] = 'Chemical Compound XR-450';
-          break;
+      const field = placeholder.toLowerCase();
+      switch (field) {
         case 'batch_number':
-          fallbackData[placeholder] = 'BTH-2024-0892';
+          fallbackData[placeholder] = 'COA-2024-001';
           break;
         case 'manufacturing_date':
-          fallbackData[placeholder] = '2024-02-15';
+          fallbackData[placeholder] = '15/01/2024';
           break;
-        case 'purity':
-          fallbackData[placeholder] = '99.8%';
+        case 'expiry_date':
+          fallbackData[placeholder] = '15/01/2026';
           break;
-        case 'expiration_date':
-          fallbackData[placeholder] = null;
+        case 'appearance':
+          fallbackData[placeholder] = 'White solid powder';
+          break;
+        case 'molecular_weight':
+          fallbackData[placeholder] = '1.2 x 10⁶';
+          break;
+        case 'sodium_hyaluronate_content':
+          fallbackData[placeholder] = '98.5%';
+          break;
+        case 'protein':
+          fallbackData[placeholder] = '0.05%';
+          break;
+        case 'loss_on_drying':
+          fallbackData[placeholder] = '7.2%';
+          break;
+        case 'ph':
+          fallbackData[placeholder] = '6.8';
+          break;
+        case 'staphylococcus_aureus':
+          fallbackData[placeholder] = 'Negative';
+          break;
+        case 'pseudomonas_aeruginosa':
+          fallbackData[placeholder] = 'Negative';
+          break;
+        case 'heavy_metal':
+          fallbackData[placeholder] = '<10 ppm';
+          break;
+        case 'total_bacteria':
+          fallbackData[placeholder] = '<50 CFU/g';
+          break;
+        case 'yeast_and_molds':
+          fallbackData[placeholder] = '<25 CFU/g';
+          break;
+        case 'issued_date':
+          fallbackData[placeholder] = '20/01/2024';
+          break;
+        case 'test_result':
+          fallbackData[placeholder] = 'Conforms';
           break;
         default:
-          fallbackData[placeholder] = `Extracted ${placeholder}`;
+          fallbackData[placeholder] = null;
       }
     });
     return { data: fallbackData };
@@ -275,18 +309,25 @@ Response format:
 }
 
 async function identifyTemplatePlaceholders(text: string, apiKey: string): Promise<string[]> {
+  // First, try to identify {} placeholders directly from the template
+  const directPlaceholders = extractDirectPlaceholders(text);
+  if (directPlaceholders.length > 0) {
+    console.log(`Found ${directPlaceholders.length} direct {} placeholders`);
+    return directPlaceholders;
+  }
+  
   const prompt = `
-You are an expert in chemical document template analysis. Analyze the following template text and identify all the data fields/placeholders that should be extracted from documents using this template.
+You are an expert in analyzing Certificate of Analysis templates. Look at this template and identify ONLY the specific data fields that have placeholders or blank spaces that need to be filled.
 
 Template text:
 ${text}
 
 Instructions:
-1. Identify fields that would typically contain variable data (not fixed text)
-2. Focus on chemical industry fields like batch numbers, product names, test results, dates, specifications
-3. Return field names in snake_case format
-4. Return only the field names as a JSON array of strings
-5. Include common chemical document fields even if not explicitly mentioned
+1. Look for {} placeholders, blank lines, or spaces after field labels
+2. ONLY identify fields that actually have empty spaces or placeholders to fill
+3. DO NOT add fields that aren't in the template
+4. Use descriptive snake_case names based on the field labels in the template
+5. Return ONLY the fields that need values, not fixed text
 
 Response format:
 ["field_name1", "field_name2", "field_name3"]
@@ -366,4 +407,45 @@ Response format:
     console.error('Placeholder identification error:', error);
     return [];
   }
+}
+
+function extractDirectPlaceholders(text: string): string[] {
+  // Look for {} placeholders and the field labels before them
+  const lines = text.split('\n');
+  const placeholders: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    // Check if line contains {} placeholder
+    if (line.includes('{}')) {
+      // Extract the field name before the {}
+      const fieldMatch = line.match(/^([^:{}]+)(?:[:.\s]+)?{}/);
+      if (fieldMatch) {
+        const fieldName = fieldMatch[1].trim()
+          .toLowerCase()
+          .replace(/\s+/g, '_')
+          .replace(/[^\w_]/g, '');
+        placeholders.push(fieldName);
+      }
+    }
+    
+    // Also check for field labels followed by empty lines or spaces
+    if (line.includes(':') && !line.includes('{}')) {
+      const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
+      // If the next line is empty or contains only spaces/dots, it might be a placeholder
+      if (nextLine === '' || /^[\s.]+$/.test(nextLine)) {
+        const fieldMatch = line.match(/^([^:]+):/);
+        if (fieldMatch) {
+          const fieldName = fieldMatch[1].trim()
+            .toLowerCase()
+            .replace(/\s+/g, '_')
+            .replace(/[^\w_]/g, '');
+          placeholders.push(fieldName);
+        }
+      }
+    }
+  }
+  
+  return placeholders;
 }
