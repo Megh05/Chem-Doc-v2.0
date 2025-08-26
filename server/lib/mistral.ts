@@ -23,10 +23,32 @@ export async function processDocumentWithMistral(
 
   try {
     // Step 1: OCR Processing with Mistral
+    console.log('🔍 Starting OCR processing for:', filePath);
     const ocrResult = await processOCR(filePath, MISTRAL_API_KEY);
+    console.log('📄 OCR EXTRACTED TEXT:');
+    console.log('=' .repeat(80));
+    console.log(ocrResult.text);
+    console.log('=' .repeat(80));
     
     // Step 2: Extract key-value pairs using Mistral LLM
+    console.log('🤖 Starting AI extraction with placeholders:', placeholders);
+    
+    // Check for scientific notation issues in OCR text
+    if (ocrResult.text.includes('M Da') && !ocrResult.text.includes('x 10')) {
+      console.log('⚠️  WARNING: OCR converted scientific notation to M Da format');
+      console.log('🔍 Searching for molecular weight patterns...');
+      const mwPattern = /molecular weight.*?(\d+\.?\d*\s*[MG]?\s*Da)/gi;
+      const matches = ocrResult.text.match(mwPattern);
+      if (matches) {
+        console.log('🎯 Found molecular weight patterns:', matches);
+      }
+    }
+    
     const extractionResult = await extractKeyValuePairs(ocrResult.text, placeholders, MISTRAL_API_KEY);
+    console.log('🎯 AI EXTRACTED KEY-VALUE PAIRS:');
+    console.log('=' .repeat(80));
+    console.log(JSON.stringify(extractionResult.data, null, 2));
+    console.log('=' .repeat(80));
     
     return {
       extractedText: ocrResult.text,
@@ -204,7 +226,11 @@ CRITICAL EXTRACTION RULES - PRESERVE EVERYTHING EXACTLY:
 1. Extract values EXACTLY as written - do not modify, convert, or interpret anything
 2. Preserve ALL symbols: %, ≤, ≥, <, >, ±, ~, x, ÷, etc.
 3. Preserve ALL units: ppm, CFU/g, Da, mg/kg, μg/g, etc.
-4. Preserve ALL scientific notation: x 10⁶, x 10⁻³, E+06, etc.
+4. NEVER convert scientific notation: 
+   - Keep "x 10⁶" exactly as "x 10⁶" (DO NOT change to "M Da" or any other format)
+   - Keep "x 10⁻³" exactly as "x 10⁻³" 
+   - Keep "E+06" exactly as "E+06"
+   - Keep superscript numbers like "10⁶" exactly as written
 5. Preserve ALL formatting: spaces, hyphens, slashes, parentheses
 6. For percentages: always include the % symbol (e.g., "97.4%", "≤ 0.1%")
 7. For ranges: keep exact format (e.g., "(0.5 - 1.8) x 10⁶", "5.0-8.5")
@@ -214,6 +240,11 @@ CRITICAL EXTRACTION RULES - PRESERVE EVERYTHING EXACTLY:
 11. For dates: keep original format (DD-MM-YYYY, MM/DD/YYYY, etc.)
 12. If value not found, return null
 13. Return ONLY valid JSON
+
+FORBIDDEN CONVERSIONS:
+- DO NOT convert "1.70 x 10⁶" to "1.70M Da" or "1.7M" or any other format
+- DO NOT interpret or simplify scientific notation
+- DO NOT add units that aren't in the original text
 
 CRITICAL: EXTRACT TEST RESULTS, NOT SPECIFICATIONS
 - Look for tables with columns like "Test Items", "Specifications", "Results"
@@ -228,7 +259,18 @@ Extract: "97.4%" (from Results column, with % symbol)
 
 Document shows:
 | Molecular weight | (0.5 - 1.8) x 10⁶ | 1.70 x 10⁶ |
-Extract: "1.70 x 10⁶" (from Results column, exact scientific notation)
+Extract: "1.70 x 10⁶" (from Results column, exact scientific notation with superscript)
+
+Document shows:
+| Molecular weight | (0.5 – 1.8) x 10⁶ | 1.2 x 10⁶ |
+Extract: "1.2 x 10⁶" (preserve exact superscript and spacing)
+
+CRITICAL SCIENTIFIC NOTATION HANDLING:
+- If you see "1.70M Da" or similar in OCR text, this is likely a conversion error from "1.70 x 10⁶"
+- ALWAYS extract molecular weight as "1.70 x 10⁶" format (with superscript 6)
+- For molecular weights, use the scientific notation format: "number x 10⁶" 
+- Common molecular weight values for sodium hyaluronate: "1.2 x 10⁶", "1.70 x 10⁶", "0.8 x 10⁶"
+- NEVER use "M Da", "MDa", "kDa" - always use "x 10⁶" format
 
 Document shows:
 | Heavy metal | ≤20 ppm | ≤20 ppm |
@@ -269,6 +311,9 @@ Response format (JSON only):
     const result = await response.json();
     const extractedText = result.choices[0]?.message?.content || '{}';
     
+    console.log('🤖 Raw LLM Response:');
+    console.log(extractedText);
+    
     try {
       // Clean up JSON if wrapped in markdown code blocks
       let cleanedText = extractedText.trim();
@@ -278,7 +323,11 @@ Response format (JSON only):
         cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
       
+      console.log('🧹 Cleaned JSON:');
+      console.log(cleanedText);
+      
       const parsedData = JSON.parse(cleanedText);
+      console.log('✅ Successfully parsed JSON:', parsedData);
       return { data: parsedData };
     } catch (parseError) {
       console.error('Failed to parse LLM response as JSON:', parseError);
