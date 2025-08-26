@@ -49,14 +49,31 @@ export default function TemplatePreview({
       let filledHtml = templateStructure.html;
       
       // Since the template HTML has positional {} placeholders, we need to replace them
-      // in the order they appear with the values from the template.placeholders array
-      const placeholderOrder = template.placeholders || [];
+      // in the order they appear. Based on the HTML structure, the correct order is:
+      const actualPlaceholderOrder = [
+        "batch_number",           // 1st {} - Batch Number
+        "manufacturing_date",     // 2nd {} - Manufacturing Date  
+        "expiry_date",           // 3rd {} - Expiry Date
+        "_appearance__white_solid_powder_",     // 4th {} - Appearance
+        "_molecular_weight_",     // 5th {} - Molecular weight (not in current data)
+        "_sodium_hyaluronate_content___95_",   // 6th {} - Sodium hyaluronate content
+        "_protein___01_",         // 7th {} - Protein
+        "_loss_on_drying___10_",  // 8th {} - Loss on drying
+        "_ph__5085_",            // 9th {} - pH
+        "_staphylococcus_aureus__negative_",   // 10th {} - Staphylococcus Aureus
+        "_pseudomonas_aeruginosa__negative_",  // 11th {} - Pseudomonas Aeruginosa
+        "_heavy_metal__20_ppm_",  // 12th {} - Heavy metal
+        "_total_bacteria___100_cfug_",         // 13th {} - Total Bacteria
+        "_yeast_and_molds___50_cfug_",         // 14th {} - Yeast and molds
+        "issued_date",           // 15th {} - Issued date
+        "test_result"            // 16th {} - Test result
+      ];
       
       // Replace {} placeholders in sequence with their corresponding extracted data
       let placeholderIndex = 0;
       filledHtml = filledHtml.replace(/\{\}/g, () => {
-        if (placeholderIndex < placeholderOrder.length) {
-          const fieldName = placeholderOrder[placeholderIndex];
+        if (placeholderIndex < actualPlaceholderOrder.length) {
+          const fieldName = actualPlaceholderOrder[placeholderIndex];
           const value = extractedData[fieldName];
           placeholderIndex++;
           
