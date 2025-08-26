@@ -396,12 +396,12 @@ function generateHTMLContent(template: any, data: Record<string, any>): string {
       
       <div class="field-row">
         <span class="label">Product Name:</span>
-        <span class="value">${data.product_name || 'COSCARE-H ACID'}</span>
+        <span class="value">${data.product_name || ''}</span>
       </div>
       
       <div class="field-row">
         <span class="label">INCI Name:</span>
-        <span class="value">${data.inci_name || 'Sodium Hyaluronate'}</span>
+        <span class="value">${data.inci_name || ''}</span>
       </div>
       
       <div class="field-row">
@@ -507,8 +507,8 @@ function generateHTMLContent(template: any, data: Record<string, any>): string {
 function generateDocxContent(template: any, data: Record<string, any>) {
   return [
     { text: '\n' },
-    { text: `Product Name: ${data.product_name || 'COSCARE-H ACID'}` },
-    { text: `INCI Name: ${data.inci_name || 'Sodium Hyaluronate'}` },
+    { text: `Product Name: ${data.product_name || ''}` },
+    { text: `INCI Name: ${data.inci_name || ''}` },
     { text: `Batch Number: ${data.batch_number || ''}` },
     { text: `Manufacturing Date: ${data.manufacturing_date || ''}` },
     { text: `Expiry Date: ${data.expiry_date || ''}` },

@@ -188,8 +188,11 @@ TEST RESULT: Conforms
 }
 
 async function extractKeyValuePairs(text: string, placeholders: string[], apiKey: string) {
+  const config = loadConfig();
+  const llmModel = config.apiSettings.llmModel || 'mistral-large-latest';
+  
   const prompt = `
-You are an expert in chemical document analysis. Extract the following information from the provided document text and return it as a JSON object.
+You are an expert in chemical document analysis. Your task is to extract EXACT values from the document text. You must preserve every symbol, unit, and formatting exactly as it appears.
 
 Required fields to extract:
 ${placeholders.map(p => `- ${p}`).join('\n')}
@@ -197,16 +200,47 @@ ${placeholders.map(p => `- ${p}`).join('\n')}
 Document text:
 ${text}
 
-Instructions:
-1. Extract the exact values for each field if found in the document
-2. For fields not found, return null
-3. Maintain proper data types (numbers, dates, strings)
-4. Focus on chemical industry terminology (CoA, TDS, MDMS documents)
-5. Return only valid JSON format
+CRITICAL EXTRACTION RULES - PRESERVE EVERYTHING EXACTLY:
+1. Extract values EXACTLY as written - do not modify, convert, or interpret anything
+2. Preserve ALL symbols: %, ≤, ≥, <, >, ±, ~, x, ÷, etc.
+3. Preserve ALL units: ppm, CFU/g, Da, mg/kg, μg/g, etc.
+4. Preserve ALL scientific notation: x 10⁶, x 10⁻³, E+06, etc.
+5. Preserve ALL formatting: spaces, hyphens, slashes, parentheses
+6. For percentages: always include the % symbol (e.g., "97.4%", "≤ 0.1%")
+7. For ranges: keep exact format (e.g., "(0.5 - 1.8) x 10⁶", "5.0-8.5")
+8. For comparison operators: keep exact spacing (e.g., "≤ 20 ppm", "< 100 CFU/g")
+9. For product names: extract from document header/title, not chemical descriptions
+10. For batch numbers: include ALL prefixes, suffixes, slashes (e.g., "NTCB/25042211K1")
+11. For dates: keep original format (DD-MM-YYYY, MM/DD/YYYY, etc.)
+12. If value not found, return null
+13. Return ONLY valid JSON
 
-Response format:
+CRITICAL: EXTRACT TEST RESULTS, NOT SPECIFICATIONS
+- Look for tables with columns like "Test Items", "Specifications", "Results"
+- Always extract from the "Results" column, NOT the "Specifications" column
+- If a result shows "Complies", look for the actual specification value and extract that
+
+EXAMPLES - EXACT EXTRACTION:
+Document shows: 
+| Test Item | Specification | Result |
+| Sodium hyaluronate content | ≥ 95% | 97.4% |
+Extract: "97.4%" (from Results column, with % symbol)
+
+Document shows:
+| Molecular weight | (0.5 - 1.8) x 10⁶ | 1.70 x 10⁶ |
+Extract: "1.70 x 10⁶" (from Results column, exact scientific notation)
+
+Document shows:
+| Heavy metal | ≤20 ppm | ≤20 ppm |
+Extract: "≤20 ppm" (from Results column, exact with symbol and unit)
+
+Document shows:
+| Total Bacteria | < 100 CFU/g | Complies |
+Extract: "< 100 CFU/g" (use specification since result is "Complies")
+
+Response format (JSON only):
 {
-  "field_name": "extracted_value_or_null"
+  "field_name": "exact_value_or_null"
 }
 `;
 
@@ -218,7 +252,7 @@ Response format:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
+        model: llmModel,
         messages: [{
           role: 'user',
           content: prompt
@@ -347,7 +381,7 @@ Response format:
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-large-latest',
+        model: 'mistral-large-latest', // Use default for template analysis  
         messages: [{
           role: 'user',
           content: prompt
@@ -481,5 +515,7 @@ function extractDirectPlaceholders(text: string): string[] {
   }
   
   // Remove duplicates and filter out empty strings
-  return [...new Set(placeholders.filter(p => p.length > 0))];
+  const filtered = placeholders.filter(p => p.length > 0);
+  const uniquePlaceholders = Array.from(new Set(filtered));
+  return uniquePlaceholders;
 }

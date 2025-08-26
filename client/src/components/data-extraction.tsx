@@ -46,17 +46,8 @@ const normalizeExtractedData = (rawData: Record<string, any>, job: ProcessingJob
     }
   });
   
-  // Handle appearance formatting
-  if (normalizedData.appearance && typeof normalizedData.appearance === 'boolean') {
-    normalizedData.appearance = normalizedData.appearance ? 'Complies' : 'Does not comply';
-  } else if (normalizedData.appearance === true) {
-    normalizedData.appearance = 'White solid powder';
-  }
-  
-  // Handle molecular weight from extracted text if not properly extracted
-  if (!normalizedData.molecular_weight && job.ocrText?.includes('1.70M Da')) {
-    normalizedData.molecular_weight = '1.70M Da';
-  }
+  // DO NOT modify extracted values - preserve exactly what the AI extracted
+  // The AI should extract exact values with symbols, units, and formatting
   
   return normalizedData;
 };
