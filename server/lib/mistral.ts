@@ -99,13 +99,10 @@ async function processOCR(filePath: string, apiKey: string) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'pixtral-12b-latest',
+        model: 'mistral-ocr-latest',
         messages: [{
           role: 'user',
           content: [{
-            type: 'text',
-            text: 'Extract all the text from this document. Return only the text content without any additional commentary.'
-          }, {
             type: 'image_url',
             image_url: {
               url: dataUrl
@@ -178,8 +175,7 @@ Response format:
           content: prompt
         }],
         temperature: 0.1,
-        max_tokens: 2000,
-        response_format: { type: 'json_object' }
+        max_tokens: 2000
       })
     });
 
@@ -267,8 +263,7 @@ Response format:
           content: prompt
         }],
         temperature: 0.2,
-        max_tokens: 1000,
-        response_format: { type: 'json_object' }
+        max_tokens: 1000
       })
     });
 
