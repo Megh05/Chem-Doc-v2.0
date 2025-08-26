@@ -400,8 +400,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documentData = data || job.extractedData || {};
 
       if (format === 'pdf') {
-        // For PDF, convert the filled template to HTML and serve it
-        // In a production environment, you'd use puppeteer or similar to generate actual PDF
+        // Generate actual PDF using Puppeteer
+        const puppeteer = require('puppeteer');
         const structure = await parseTemplateStructure(templatePath);
         let htmlContent = structure.html;
         
@@ -420,9 +420,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         });
         
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
-        res.send(htmlContent);
+        // Add CSS styling for better PDF appearance
+        const styledHtmlContent = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { 
+                font-family: Arial, sans-serif; 
+                margin: 40px; 
+                line-height: 1.6; 
+                color: #333;
+              }
+              h1, h2, h3 { 
+                color: #2c3e50; 
+                margin-top: 30px; 
+                margin-bottom: 15px;
+              }
+              table { 
+                width: 100%; 
+                border-collapse: collapse; 
+                margin: 20px 0;
+              }
+              th, td { 
+                border: 1px solid #ddd; 
+                padding: 12px; 
+                text-align: left;
+              }
+              th { 
+                background-color: #f5f5f5; 
+                font-weight: bold;
+              }
+              .header { 
+                text-align: center; 
+                margin-bottom: 30px;
+              }
+              .field-group { 
+                margin: 15px 0;
+              }
+              .field-label { 
+                font-weight: bold; 
+                display: inline-block; 
+                min-width: 200px;
+              }
+              .field-value { 
+                margin-left: 10px;
+              }
+            </style>
+          </head>
+          <body>
+            ${htmlContent}
+          </body>
+          </html>
+        `;
+        
+        // Launch Puppeteer and generate PDF
+        const browser = await puppeteer.launch({
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        
+        try {
+          const page = await browser.newPage();
+          await page.setContent(styledHtmlContent, { waitUntil: 'networkidle0' });
+          
+          const pdfBuffer = await page.pdf({
+            format: 'A4',
+            margin: {
+              top: '20mm',
+              right: '20mm',
+              bottom: '20mm',
+              left: '20mm'
+            },
+            printBackground: true
+          });
+          
+          await browser.close();
+          
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
+          res.send(pdfBuffer);
+        } catch (error) {
+          await browser.close();
+          throw error;
+        }
         
       } else if (format === 'docx') {
         // Generate DOCX using the template-based approach
