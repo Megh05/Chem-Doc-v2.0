@@ -4,6 +4,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import officegen from "officegen";
+import mammoth from "mammoth";
+import JSZip from "jszip";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
@@ -144,6 +146,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.sendFile(path.resolve(filePath));
     } catch (error: any) {
       res.status(500).json({ message: "Failed to download template", error: error.message });
+    }
+  });
+
+  // New endpoint to get template preview HTML
+  app.get("/api/templates/:id/preview", async (req, res) => {
+    try {
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      // Find template file
+      const files = fs.readdirSync(uploadDir);
+      let targetFile: string | null = null;
+
+      if (fs.existsSync(path.join(uploadDir, template.fileName))) {
+        targetFile = template.fileName;
+      } else {
+        for (const file of files) {
+          const filePath = path.join(uploadDir, file);
+          const stats = fs.statSync(filePath);
+          if (stats.size === template.fileSize) {
+            targetFile = file;
+            break;
+          }
+        }
+      }
+
+      if (!targetFile) {
+        return res.status(404).json({ message: "Template file not found" });
+      }
+
+      const templatePath = path.join(uploadDir, targetFile);
+      const structure = await parseTemplateStructure(templatePath);
+      
+      res.json({
+        html: structure.html,
+        placeholders: template.placeholders
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to parse template", error: error.message });
     }
   });
 
@@ -303,38 +346,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Template not found" });
       }
 
-      // Use provided data, fallback to job extracted data
+      // Find template file
+      const files = fs.readdirSync(uploadDir);
+      let targetFile: string | null = null;
+
+      if (fs.existsSync(path.join(uploadDir, template.fileName))) {
+        targetFile = template.fileName;
+      } else {
+        for (const file of files) {
+          const filePath = path.join(uploadDir, file);
+          const stats = fs.statSync(filePath);
+          if (stats.size === template.fileSize) {
+            targetFile = file;
+            break;
+          }
+        }
+      }
+
+      if (!targetFile) {
+        return res.status(404).json({ message: "Template file not found" });
+      }
+
+      const templatePath = path.join(uploadDir, targetFile);
       const documentData = data || job.extractedData || {};
 
       if (format === 'pdf') {
-        const htmlContent = generateHTMLContent(template, documentData);
+        // For PDF, convert the filled template to HTML and serve it
+        // In a production environment, you'd use puppeteer or similar to generate actual PDF
+        const structure = await parseTemplateStructure(templatePath);
+        let htmlContent = structure.html;
         
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.html"`);
+        // Replace placeholders in HTML with actual data
+        Object.keys(documentData).forEach(key => {
+          const value = documentData[key] || '';
+          const placeholderPatterns = [
+            new RegExp(`\\{${key}\\}`, 'g'),
+            new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+            new RegExp(`___${key}___`, 'g'),
+            new RegExp(`\\[${key}\\]`, 'g')
+          ];
+          
+          placeholderPatterns.forEach(pattern => {
+            htmlContent = htmlContent.replace(pattern, value);
+          });
+        });
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
         res.send(htmlContent);
         
       } else if (format === 'docx') {
-        const docx = officegen('docx');
-        
-        // Add dynamic title based on template type
-        const documentTitle = template.type === 'TDS' ? 'TECHNICAL DATA SHEET' : 
-                             template.type === 'MDMS' ? 'MATERIAL DATA MANAGEMENT SHEET' : 
-                             'CERTIFICATE OF ANALYSIS';
-        const title = docx.createP();
-        title.addText(documentTitle, { font_face: 'Arial', font_size: 16, bold: true });
-        title.options.align = 'center';
-        
-        // Add content
-        const content = generateDocxContent(template, documentData);
-        content.forEach(line => {
-          const p = docx.createP();
-          p.addText(line.text, line.options || { font_face: 'Arial', font_size: 11 });
-        });
+        // Generate DOCX using the template-based approach
+        const filledDocxBuffer = await fillTemplateWithData(templatePath, documentData);
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.docx"`);
-        
-        docx.generate(res);
+        res.send(filledDocxBuffer);
         
       } else {
         return res.status(400).json({ message: "Invalid format. Use 'pdf' or 'docx'" });
@@ -436,6 +503,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Helper function to parse DOCX template structure
+async function parseTemplateStructure(templatePath: string) {
+  try {
+    const data = fs.readFileSync(templatePath);
+    const zip = await JSZip.loadAsync(data);
+    const documentXml = await zip.file("word/document.xml")?.async("string");
+    
+    if (!documentXml) {
+      throw new Error("Could not extract document.xml from DOCX");
+    }
+
+    // Extract the raw structure for template preview
+    const result = await mammoth.convertToHtml({ path: templatePath });
+    const htmlContent = result.value;
+    
+    return {
+      html: htmlContent,
+      xml: documentXml,
+      messages: result.messages
+    };
+  } catch (error) {
+    console.error('Template parsing error:', error);
+    throw error;
+  }
+}
+
+// Helper function to fill template with extracted data
+async function fillTemplateWithData(templatePath: string, extractedData: Record<string, any>) {
+  try {
+    const templateBuffer = fs.readFileSync(templatePath);
+    const zip = await JSZip.loadAsync(templateBuffer);
+    
+    // Get document.xml content
+    const documentXml = await zip.file("word/document.xml")?.async("string");
+    if (!documentXml) {
+      throw new Error("Could not extract document.xml from DOCX");
+    }
+
+    // Replace placeholders in the XML
+    let modifiedXml = documentXml;
+    Object.keys(extractedData).forEach(key => {
+      const value = extractedData[key] || '';
+      // Replace various placeholder formats
+      const placeholderPatterns = [
+        new RegExp(`\\{${key}\\}`, 'g'),
+        new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
+        new RegExp(`___${key}___`, 'g'),
+        new RegExp(`\\[${key}\\]`, 'g')
+      ];
+      
+      placeholderPatterns.forEach(pattern => {
+        modifiedXml = modifiedXml.replace(pattern, value);
+      });
+    });
+
+    // Update the document.xml in the zip
+    zip.file("word/document.xml", modifiedXml);
+    
+    // Generate the modified DOCX
+    const modifiedBuffer = await zip.generateAsync({ type: "nodebuffer" });
+    return modifiedBuffer;
+    
+  } catch (error) {
+    console.error('Template filling error:', error);
+    throw error;
+  }
 }
 
 function generateHTMLContent(template: any, data: Record<string, any>): string {
