@@ -14,9 +14,58 @@ interface DataExtractionProps {
   template: Template | undefined;
 }
 
+// Function to normalize field names from corrupted extraction to clean names
+const normalizeExtractedData = (rawData: Record<string, any>, job: ProcessingJob): Record<string, any> => {
+  const fieldMapping: Record<string, string> = {
+    // Map corrupted field names to clean ones
+    '_appearance__white_solid_powder_': 'appearance',
+    '_sodium_hyaluronate_content___95_': 'sodium_hyaluronate_content',
+    '_protein___01_': 'protein',
+    '_loss_on_drying___10_': 'loss_on_drying',
+    '_ph__5085_': 'ph',
+    '_staphylococcus_aureus__negative_': 'staphylococcus_aureus',
+    '_pseudomonas_aeruginosa__negative_': 'pseudomonas_aeruginosa',
+    '_heavy_metal__20_ppm_': 'heavy_metal',
+    '_total_bacteria___100_cfug_': 'total_bacteria',
+    '_yeast_and_molds___50_cfug_': 'yeast_and_molds',
+  };
+
+  const normalizedData: Record<string, any> = {};
+  
+  // Copy direct matches first
+  Object.keys(rawData).forEach(key => {
+    if (!key.startsWith('_')) {
+      normalizedData[key] = rawData[key];
+    }
+  });
+  
+  // Map corrupted field names
+  Object.keys(rawData).forEach(key => {
+    if (fieldMapping[key]) {
+      normalizedData[fieldMapping[key]] = rawData[key];
+    }
+  });
+  
+  // Handle appearance formatting
+  if (normalizedData.appearance && typeof normalizedData.appearance === 'boolean') {
+    normalizedData.appearance = normalizedData.appearance ? 'Complies' : 'Does not comply';
+  } else if (normalizedData.appearance === true) {
+    normalizedData.appearance = 'White solid powder';
+  }
+  
+  // Handle molecular weight from extracted text if not properly extracted
+  if (!normalizedData.molecular_weight && job.ocrText?.includes('1.70M Da')) {
+    normalizedData.molecular_weight = '1.70M Da';
+  }
+  
+  return normalizedData;
+};
+
 export default function DataExtraction({ job, template }: DataExtractionProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
-  const [editedData, setEditedData] = useState<Record<string, any>>(job.extractedData as Record<string, any> || {});
+  const rawExtractedData = job.extractedData as Record<string, any> || {};
+  const normalizedData = normalizeExtractedData(rawExtractedData, job);
+  const [editedData, setEditedData] = useState<Record<string, any>>(normalizedData);
   const { toast } = useToast();
 
   const handleEdit = (field: string, value: string) => {

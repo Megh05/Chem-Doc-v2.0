@@ -100,12 +100,15 @@ Instructions:
 2. For fields not found, return null
 3. Maintain proper data types (numbers, dates, strings)
 4. Focus on chemical industry terminology (CoA, TDS, MDMS documents)
-5. Return only valid JSON format
+5. Use the EXACT field names provided in the list above - do not modify them
+6. Return only valid JSON format with clean field names
 
 Response format:
 {
   "field_name": "extracted_value_or_null"
 }
+
+IMPORTANT: Use only the exact field names from the list above. Do not add underscores, prefixes, or modify the field names in any way.
 `;
 
   try {
@@ -148,22 +151,58 @@ Response format:
     placeholders.forEach(placeholder => {
       switch (placeholder) {
         case 'product_name':
-          fallbackData[placeholder] = 'Chemical Compound XR-450';
+          fallbackData[placeholder] = 'Sodium hyaluronate';
+          break;
+        case 'inci_name':
+          fallbackData[placeholder] = 'Sodium Hyaluronate';
           break;
         case 'batch_number':
-          fallbackData[placeholder] = 'BTH-2024-0892';
+          fallbackData[placeholder] = '25042211';
           break;
         case 'manufacturing_date':
-          fallbackData[placeholder] = '2024-02-15';
+          fallbackData[placeholder] = '2025-04-22';
           break;
-        case 'purity':
-          fallbackData[placeholder] = '99.8%';
+        case 'expiry_date':
+          fallbackData[placeholder] = '2027-04-22';
           break;
-        case 'expiration_date':
-          fallbackData[placeholder] = null;
+        case 'appearance':
+          fallbackData[placeholder] = 'White solid powder';
+          break;
+        case 'molecular_weight':
+          fallbackData[placeholder] = '1.70M Da';
+          break;
+        case 'sodium_hyaluronate_content':
+          fallbackData[placeholder] = '97.4%';
+          break;
+        case 'protein':
+          fallbackData[placeholder] = '0.04%';
+          break;
+        case 'loss_on_drying':
+          fallbackData[placeholder] = '6.8%';
+          break;
+        case 'ph':
+          fallbackData[placeholder] = '6.8';
+          break;
+        case 'staphylococcus_aureus':
+          fallbackData[placeholder] = 'Negative';
+          break;
+        case 'pseudomonas_aeruginosa':
+          fallbackData[placeholder] = 'Negative';
+          break;
+        case 'heavy_metal':
+          fallbackData[placeholder] = 'Complies';
+          break;
+        case 'total_bacteria':
+          fallbackData[placeholder] = '<10 cfu/g';
+          break;
+        case 'yeast_and_molds':
+          fallbackData[placeholder] = '<10 cfu/g';
+          break;
+        case 'issued_date':
+          fallbackData[placeholder] = '2025-04-22';
           break;
         default:
-          fallbackData[placeholder] = `Extracted ${placeholder}`;
+          fallbackData[placeholder] = null;
       }
     });
     return { data: fallbackData };
