@@ -81,89 +81,132 @@ export async function extractPlaceholdersFromTemplate(filePath: string): Promise
   }
 }
 
-// Comprehensive placeholder detection that ensures 100% accuracy
+// AI-powered placeholder detection using only Mistral OCR
 async function comprehensivePlaceholderDetection(text: string, apiKey: string): Promise<string[]> {
-  console.log('🔍 Starting comprehensive placeholder detection...');
+  console.log('🤖 Starting Mistral AI-powered placeholder detection...');
   console.log('📄 Template text length:', text.length);
   
-  // Method 1: Direct {} detection (most reliable)
-  const directPlaceholders = extractDirectPlaceholders(text);
-  console.log(`Method 1 (Direct {}): Found ${directPlaceholders.length} placeholders`);
-  
-  // Method 2: Alternative placeholder formats
-  const alternativePlaceholders = extractAlternativePlaceholders(text);
-  console.log(`Method 2 (Alternative): Found ${alternativePlaceholders.length} placeholders`);
-  
-  // Method 3: AI-based detection as backup
+  // Use only Mistral AI for intelligent placeholder identification
   let aiPlaceholders: string[] = [];
   try {
-    aiPlaceholders = await identifyTemplatePlaceholders(text, apiKey);
-    console.log(`Method 3 (AI): Found ${aiPlaceholders.length} placeholders`);
+    aiPlaceholders = await mistralTemplatePlaceholderAnalysis(text, apiKey);
+    console.log(`🎯 Mistral AI detected ${aiPlaceholders.length} placeholders:`, aiPlaceholders);
   } catch (error) {
-    console.error('AI placeholder detection failed:', error);
+    console.error('Mistral AI placeholder detection failed:', error);
+    throw new Error(`Mistral AI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
   }
   
-  // Method 4: Structure-based detection for known CoA template format
-  const structuralPlaceholders = extractStructuralPlaceholders(text);
-  console.log(`Method 4 (Structural): Found ${structuralPlaceholders.length} placeholders`);
+  return aiPlaceholders;
+}
+
+// Advanced Mistral AI analysis for template placeholder identification
+async function mistralTemplatePlaceholderAnalysis(text: string, apiKey: string): Promise<string[]> {
+  const config = loadConfig();
+  const llmModel = config.apiSettings.llmModel || 'mistral-large-latest';
   
-  // Use the method that found the most placeholders (most likely correct)
-  let finalPlaceholders: string[] = [];
-  
-  // For CoA templates, we know there should be exactly 16 placeholders
-  const expectedCoAPlaceholders = 16;
-  
-  if (structuralPlaceholders.length === expectedCoAPlaceholders) {
-    finalPlaceholders = structuralPlaceholders;
-    console.log(`✅ Using structural detection: ${structuralPlaceholders.length} placeholders (perfect match)`);
-  } else if (directPlaceholders.length === expectedCoAPlaceholders) {
-    finalPlaceholders = directPlaceholders;
-    console.log(`✅ Using direct {} detection: ${directPlaceholders.length} placeholders (perfect match)`);
-  } else if (directPlaceholders.length >= structuralPlaceholders.length && directPlaceholders.length > 0) {
-    finalPlaceholders = directPlaceholders;
-    console.log(`✅ Using direct {} detection: ${directPlaceholders.length} placeholders`);
-  } else if (structuralPlaceholders.length > directPlaceholders.length) {
-    finalPlaceholders = structuralPlaceholders;
-    console.log(`✅ Using structural detection: ${structuralPlaceholders.length} placeholders`);
-  } else if (alternativePlaceholders.length > finalPlaceholders.length) {
-    finalPlaceholders = alternativePlaceholders;
-    console.log(`✅ Using alternative format detection: ${alternativePlaceholders.length} placeholders`);
-  } else if (aiPlaceholders.length > finalPlaceholders.length) {
-    finalPlaceholders = aiPlaceholders;
-    console.log(`✅ Using AI detection: ${aiPlaceholders.length} placeholders`);
-  } else {
-    console.log('❌ OCR missed placeholders - using known CoA template structure');
-    // Generate specific placeholders for CoA template based on observed structure
-    finalPlaceholders = [
-      'batch_number',
-      'manufacturing_date', 
-      'expiry_date',
-      'appearance',
-      'molecular_weight',
-      'sodium_hyaluronate_content',
-      'protein',
-      'loss_on_drying',
-      'ph',
-      'staphylococcus_aureus',
-      'pseudomonas_aeruginosa',
-      'heavy_metal',
-      'total_bacteria',
-      'yeast_and_molds',
-      'issued_date',
-      'test_result'
-    ];
-  }
-  
-  // Validation: Ensure we have meaningful placeholder names
-  const validatedPlaceholders = finalPlaceholders.map((placeholder, index) => {
-    if (!placeholder || placeholder.trim() === '') {
-      return `field_${index + 1}`;
+  const prompt = `
+You are an expert in analyzing document templates for chemical industry applications. Your task is to identify ALL placeholder fields in this template that need to be filled with data.
+
+TEMPLATE CONTENT:
+${text}
+
+ANALYSIS INSTRUCTIONS:
+1. Identify every field that has a placeholder marker ({}, blank space, or area for data entry)
+2. Focus on areas where dynamic data would be inserted (not static text or labels)
+3. Look for patterns like:
+   - {} placeholders
+   - Table cells with empty result values
+   - Fields after colons or labels that expect data
+   - Date fields, batch numbers, test results, measurements
+4. Extract the semantic meaning of each field based on the surrounding context
+5. Generate clean, descriptive field names using snake_case format
+
+EXPECTED TEMPLATE STRUCTURE (Certificate of Analysis):
+- Product identification fields (batch, dates)
+- Test specification and result pairs
+- Signature/certification fields
+
+FIELD NAMING RULES:
+- Use descriptive snake_case names (e.g., "batch_number", "manufacturing_date")
+- For test results, use the test name (e.g., "appearance", "molecular_weight", "ph")
+- Be specific and clear (e.g., "sodium_hyaluronate_content" not just "content")
+
+OUTPUT FORMAT:
+Return ONLY a JSON array of field names in the order they appear in the template:
+["field_name_1", "field_name_2", "field_name_3", ...]
+
+CRITICAL: Analyze the entire template structure and identify ALL placeholder positions. A typical CoA template should have 15-20 fields including basic info, test results, and document metadata.
+`;
+
+  try {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: llmModel,
+        messages: [{
+          role: 'user',
+          content: prompt
+        }],
+        temperature: 0.1,
+        max_tokens: 1500
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Mistral AI API error: ${response.status} ${response.statusText}`);
     }
-    return placeholder;
-  });
-  
-  console.log(`🎯 Final validated placeholders (${validatedPlaceholders.length}):`, validatedPlaceholders);
-  return validatedPlaceholders;
+
+    const result = await response.json();
+    const extractedText = result.choices[0]?.message?.content || '[]';
+    
+    console.log('🤖 Raw Mistral AI Response:');
+    console.log(extractedText);
+    
+    try {
+      // Clean up JSON if wrapped in markdown code blocks
+      let cleanedText = extractedText.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      // Try to extract JSON array if the response contains extra text
+      const jsonMatch = cleanedText.match(/\[[\s\S]*?\]/);
+      if (jsonMatch) {
+        cleanedText = jsonMatch[0];
+      }
+      
+      // Clean up common JSON issues
+      cleanedText = cleanedText
+        .replace(/,\s*]/g, ']') // Remove trailing commas
+        .replace(/,\s*}/g, '}') // Remove trailing commas in objects
+        .replace(/'/g, '"'); // Replace single quotes with double quotes
+      
+      console.log('🧹 Cleaned JSON for parsing:', cleanedText);
+      
+      const placeholders = JSON.parse(cleanedText);
+      
+      if (!Array.isArray(placeholders)) {
+        throw new Error('Response is not an array');
+      }
+      
+      console.log(`✅ Mistral AI successfully identified ${placeholders.length} placeholders`);
+      return placeholders;
+      
+    } catch (parseError) {
+      console.error('Failed to parse Mistral AI response as JSON:', parseError);
+      throw new Error(`Invalid JSON response from Mistral AI: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+    }
+    
+  } catch (error) {
+    console.error('Mistral AI analysis error:', error);
+    throw new Error(`Mistral AI analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // Structure-based detection for CoA templates
@@ -412,112 +455,10 @@ Response format (JSON only containing ONLY the template fields):
   }
 }
 
+// Legacy function - now using Mistral AI-powered analysis instead
 async function identifyTemplatePlaceholders(text: string, apiKey: string): Promise<string[]> {
-  // First, try to identify {} placeholders directly from the template
-  const directPlaceholders = extractDirectPlaceholders(text);
-  if (directPlaceholders.length > 0) {
-    console.log(`Found ${directPlaceholders.length} direct {} placeholders`);
-    return directPlaceholders;
-  }
-  
-  // Also check for other common placeholder formats
-  const alternativePlaceholders = extractAlternativePlaceholders(text);
-  if (alternativePlaceholders.length > 0) {
-    console.log(`Found ${alternativePlaceholders.length} alternative placeholders`);
-    return alternativePlaceholders;
-  }
-  
-  const prompt = `
-You are an expert in analyzing Certificate of Analysis templates. Look at this template and identify ONLY the specific data fields that have placeholders or blank spaces that need to be filled.
-
-Template text:
-${text}
-
-Instructions:
-1. Look for {} placeholders, blank lines, or spaces after field labels
-2. ONLY identify fields that actually have empty spaces or placeholders to fill
-3. DO NOT add fields that aren't in the template
-4. Use descriptive snake_case names based on the field labels in the template
-5. Return ONLY the fields that need values, not fixed text
-
-Response format:
-["field_name1", "field_name2", "field_name3"]
-`;
-
-  try {
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'mistral-large-latest', // Use default for template analysis  
-        messages: [{
-          role: 'user',
-          content: prompt
-        }],
-        temperature: 0.2,
-        max_tokens: 1000
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-    const extractedText = result.choices[0]?.message?.content || '[]';
-    
-    try {
-      // Clean up JSON if wrapped in markdown code blocks
-      let cleanedText = extractedText.trim();
-      
-      console.log('Raw LLM response for placeholders:', cleanedText);
-      
-      if (cleanedText.startsWith('```json')) {
-        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      } else if (cleanedText.startsWith('```')) {
-        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
-      }
-      
-      // Try to extract JSON array if the response contains extra text
-      const jsonMatch = cleanedText.match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        cleanedText = jsonMatch[0];
-      }
-      
-      // Clean up common JSON issues
-      cleanedText = cleanedText
-        .replace(/,\s*]/g, ']') // Remove trailing commas
-        .replace(/,\s*}/g, '}') // Remove trailing commas in objects
-        .replace(/'/g, '"'); // Replace single quotes with double quotes
-      
-      console.log('Cleaned JSON for parsing:', cleanedText);
-      
-      const placeholders = JSON.parse(cleanedText);
-      return Array.isArray(placeholders) ? placeholders : [];
-    } catch (parseError) {
-      console.error('Failed to parse placeholder response as JSON:', parseError);
-      // Return common chemical document placeholders as fallback
-      return [
-        'product_name',
-        'batch_number', 
-        'manufacturing_date',
-        'expiry_date',
-        'assay_result',
-        'purity_result',
-        'ph_value',
-        'moisture_content',
-        'qc_manager',
-        'certificate_number'
-      ];
-    }
-    
-  } catch (error) {
-    console.error('Placeholder identification error:', error);
-    return [];
-  }
+  // Redirect to new Mistral AI analysis
+  return await mistralTemplatePlaceholderAnalysis(text, apiKey);
 }
 
 function extractDirectPlaceholders(text: string): string[] {
