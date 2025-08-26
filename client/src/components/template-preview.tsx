@@ -7,6 +7,101 @@ import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { Template } from "@shared/schema";
 
+// Intelligent mapping function to match extracted data to template placeholders
+function intelligentlyMapPlaceholders(templateHtml: string, extractedData: Record<string, any>): any[] {
+  // Split HTML around {} placeholders to get context
+  const parts = templateHtml.split(/\{\}/);
+  const contexts: string[] = [];
+  
+  // Extract context before each placeholder
+  for (let i = 0; i < parts.length - 1; i++) {
+    const beforeContext = parts[i].slice(-200); // Last 200 chars before placeholder
+    const afterContext = parts[i + 1].slice(0, 200); // First 200 chars after placeholder
+    contexts.push(beforeContext + afterContext);
+  }
+  
+  const mappedValues: any[] = [];
+  
+  // For each placeholder position, find the best matching extracted value
+  contexts.forEach((context, index) => {
+    let bestMatch = null;
+    let bestScore = 0;
+    
+    Object.entries(extractedData).forEach(([key, value]) => {
+      const score = calculateMatchScore(context, key, value);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = value;
+      }
+    });
+    
+    mappedValues.push(bestMatch);
+  });
+  
+  return mappedValues;
+}
+
+// Calculate how well a field matches a template context
+function calculateMatchScore(context: string, fieldKey: string, fieldValue: any): number {
+  let score = 0;
+  const lowerContext = context.toLowerCase();
+  const cleanKey = fieldKey.replace(/_/g, ' ').toLowerCase();
+  
+  // Direct keyword matching
+  const keywords = [
+    { pattern: /batch.*number|lot.*number/i, keys: ['batch_number', 'batch', 'lot'] },
+    { pattern: /manufacturing.*date|production.*date/i, keys: ['manufacturing_date', 'production_date'] },
+    { pattern: /expiry.*date|expiration.*date|retest.*date/i, keys: ['expiry_date', 'expiration_date'] },
+    { pattern: /product.*name/i, keys: ['product_name'] },
+    { pattern: /inci.*name/i, keys: ['inci_name'] },
+    { pattern: /appearance/i, keys: ['appearance'] },
+    { pattern: /molecular.*weight/i, keys: ['molecular_weight'] },
+    { pattern: /sodium.*hyaluronate.*content/i, keys: ['sodium_hyaluronate_content'] },
+    { pattern: /protein/i, keys: ['protein'] },
+    { pattern: /loss.*on.*drying/i, keys: ['loss_on_drying'] },
+    { pattern: /ph/i, keys: ['ph'] },
+    { pattern: /staphylococcus.*aureus/i, keys: ['staphylococcus_aureus'] },
+    { pattern: /pseudomonas.*aeruginosa/i, keys: ['pseudomonas_aeruginosa'] },
+    { pattern: /heavy.*metal/i, keys: ['heavy_metal'] },
+    { pattern: /total.*bacteria/i, keys: ['total_bacteria'] },
+    { pattern: /yeast.*and.*molds?/i, keys: ['yeast_and_molds'] },
+    { pattern: /issued.*date|issue.*date/i, keys: ['issued_date'] },
+    { pattern: /test.*result|conclusion/i, keys: ['test_result'] }
+  ];
+  
+  // Check if context matches any pattern and field key matches
+  keywords.forEach(({ pattern, keys }) => {
+    if (pattern.test(lowerContext)) {
+      keys.forEach(key => {
+        if (cleanKey.includes(key) || fieldKey.includes(key)) {
+          score += 100; // High score for direct pattern + key match
+        }
+      });
+    }
+  });
+  
+  // Additional scoring based on field key components in context
+  const keyWords = cleanKey.split(' ');
+  keyWords.forEach(word => {
+    if (word.length > 2 && lowerContext.includes(word)) {
+      score += 20;
+    }
+  });
+  
+  // Value type matching (boost score for appropriate value types)
+  if (typeof fieldValue === 'boolean' && lowerContext.includes('negative')) {
+    score += 15;
+  }
+  if (typeof fieldValue === 'number' && /[0-9%]/.test(lowerContext)) {
+    score += 10;
+  }
+  if (typeof fieldValue === 'string' && fieldValue.includes('Date') && lowerContext.includes('date')) {
+    score += 25;
+  }
+  
+  return score;
+}
+
 interface TemplatePreviewProps {
   template: Template;
   extractedData: Record<string, any>;
@@ -48,33 +143,14 @@ export default function TemplatePreview({
       // Use the actual template HTML structure and fill in the extracted values
       let filledHtml = templateStructure.html;
       
-      // Since the template HTML has positional {} placeholders, we need to replace them
-      // in the order they appear. Based on the HTML structure, the correct order is:
-      const actualPlaceholderOrder = [
-        "batch_number",           // 1st {} - Batch Number
-        "manufacturing_date",     // 2nd {} - Manufacturing Date  
-        "expiry_date",           // 3rd {} - Expiry Date
-        "_appearance__white_solid_powder_",     // 4th {} - Appearance
-        "_molecular_weight_",     // 5th {} - Molecular weight (not in current data)
-        "_sodium_hyaluronate_content___95_",   // 6th {} - Sodium hyaluronate content
-        "_protein___01_",         // 7th {} - Protein
-        "_loss_on_drying___10_",  // 8th {} - Loss on drying
-        "_ph__5085_",            // 9th {} - pH
-        "_staphylococcus_aureus__negative_",   // 10th {} - Staphylococcus Aureus
-        "_pseudomonas_aeruginosa__negative_",  // 11th {} - Pseudomonas Aeruginosa
-        "_heavy_metal__20_ppm_",  // 12th {} - Heavy metal
-        "_total_bacteria___100_cfug_",         // 13th {} - Total Bacteria
-        "_yeast_and_molds___50_cfug_",         // 14th {} - Yeast and molds
-        "issued_date",           // 15th {} - Issued date
-        "test_result"            // 16th {} - Test result
-      ];
+      // Intelligently map placeholders by analyzing the template context
+      const mappedValues = intelligentlyMapPlaceholders(templateStructure.html, extractedData);
       
-      // Replace {} placeholders in sequence with their corresponding extracted data
+      // Replace {} placeholders in sequence with the intelligently mapped values
       let placeholderIndex = 0;
       filledHtml = filledHtml.replace(/\{\}/g, () => {
-        if (placeholderIndex < actualPlaceholderOrder.length) {
-          const fieldName = actualPlaceholderOrder[placeholderIndex];
-          const value = extractedData[fieldName];
+        if (placeholderIndex < mappedValues.length) {
+          const value = mappedValues[placeholderIndex];
           placeholderIndex++;
           
           // Format the value appropriately
@@ -86,8 +162,7 @@ export default function TemplatePreview({
           if (typeof value === 'boolean') {
             formattedValue = value ? 'Complies' : 'Non-compliant';
           } else if (typeof value === 'number') {
-            formattedValue = value.toString() + (fieldName.includes('ph') ? '' : 
-                   fieldName.includes('content') || fieldName.includes('protein') || fieldName.includes('drying') ? '%' : '');
+            formattedValue = value.toString();
           } else {
             formattedValue = value.toString();
           }
