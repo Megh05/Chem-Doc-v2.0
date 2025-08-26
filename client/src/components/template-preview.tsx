@@ -23,12 +23,42 @@ export default function TemplatePreview({
   isSaving = false
 }: TemplatePreviewProps) {
   const [showFullPreview, setShowFullPreview] = useState(false);
+  const [intelligentMapping, setIntelligentMapping] = useState<string[] | null>(null);
 
   // Fetch the actual template structure
   const { data: templateStructure, isLoading: isLoadingStructure } = useQuery<{html: string; placeholders: string[]}>({
     queryKey: [`/api/templates/${template.id}/preview`],
     enabled: !!template.id,
   });
+
+  // Get intelligent mapping when template and data are available
+  useEffect(() => {
+    const getIntelligentMapping = async () => {
+      try {
+        const response = await fetch('/api/intelligent-mapping', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            extractedData,
+            templateHtml: templateStructure.html
+          })
+        });
+        
+        if (response.ok) {
+          const mapping = await response.json();
+          setIntelligentMapping(mapping);
+        }
+      } catch (error) {
+        console.error('Failed to get intelligent mapping:', error);
+      }
+    };
+    
+    if (templateStructure?.html && Object.keys(extractedData).length > 0) {
+      getIntelligentMapping();
+    }
+  }, [templateStructure?.html, extractedData]);
 
   const renderTemplateContent = () => {
     if (isLoadingStructure) {
@@ -48,32 +78,21 @@ export default function TemplatePreview({
       // Use the actual template HTML structure and fill in the extracted values
       let filledHtml = templateStructure.html;
       
-      // Since the template HTML has positional {} placeholders, we need to replace them
-      // in the order they appear. Based on the HTML structure, the correct order is:
-      const actualPlaceholderOrder = [
-        "batch_number",           // 1st {} - Batch Number
-        "manufacturing_date",     // 2nd {} - Manufacturing Date  
-        "expiry_date",           // 3rd {} - Expiry Date
-        "_appearance__white_solid_powder_",     // 4th {} - Appearance
-        "_molecular_weight_",     // 5th {} - Molecular weight (not in current data)
-        "_sodium_hyaluronate_content___95_",   // 6th {} - Sodium hyaluronate content
-        "_protein___01_",         // 7th {} - Protein
-        "_loss_on_drying___10_",  // 8th {} - Loss on drying
-        "_ph__5085_",            // 9th {} - pH
-        "_staphylococcus_aureus__negative_",   // 10th {} - Staphylococcus Aureus
-        "_pseudomonas_aeruginosa__negative_",  // 11th {} - Pseudomonas Aeruginosa
-        "_heavy_metal__20_ppm_",  // 12th {} - Heavy metal
-        "_total_bacteria___100_cfug_",         // 13th {} - Total Bacteria
-        "_yeast_and_molds___50_cfug_",         // 14th {} - Yeast and molds
-        "issued_date",           // 15th {} - Issued date
-        "test_result"            // 16th {} - Test result
+      // Use the intelligent mapping or fall back to basic order
+      const placeholderOrder = intelligentMapping || [
+        "batch_number", "manufacturing_date", "expiry_date",
+        "_appearance__white_solid_powder_", "_molecular_weight_",
+        "_sodium_hyaluronate_content___95_", "_protein___01_", "_loss_on_drying___10_",
+        "_ph__5085_", "_staphylococcus_aureus__negative_", "_pseudomonas_aeruginosa__negative_",
+        "_heavy_metal__20_ppm_", "_total_bacteria___100_cfug_", "_yeast_and_molds___50_cfug_",
+        "issued_date", "test_result"
       ];
       
       // Replace {} placeholders in sequence with their corresponding extracted data
       let placeholderIndex = 0;
       filledHtml = filledHtml.replace(/\{\}/g, () => {
-        if (placeholderIndex < actualPlaceholderOrder.length) {
-          const fieldName = actualPlaceholderOrder[placeholderIndex];
+        if (placeholderIndex < placeholderOrder.length) {
+          const fieldName = placeholderOrder[placeholderIndex];
           const value = extractedData[fieldName];
           placeholderIndex++;
           

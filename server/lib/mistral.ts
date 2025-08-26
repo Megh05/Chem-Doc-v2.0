@@ -568,3 +568,135 @@ function extractDirectPlaceholders(text: string): string[] {
   const uniquePlaceholders = Array.from(new Set(filtered));
   return uniquePlaceholders;
 }
+
+// New function to intelligently map extracted data to template placeholders using Mistral
+export async function mapExtractedDataToTemplate(
+  extractedData: Record<string, any>,
+  templateHtml: string,
+  apiKey: string
+): Promise<string[]> {
+  const config = loadConfig();
+  const llmModel = config.apiSettings.llmModel || 'mistral-large-latest';
+  
+  // Count the number of {} placeholders in the template
+  const placeholderCount = (templateHtml.match(/\{\}/g) || []).length;
+  
+  const prompt = `
+You are an expert in document template analysis. Your task is to analyze a template HTML structure and intelligently map extracted data fields to the correct placeholder positions.
+
+TEMPLATE HTML STRUCTURE:
+${templateHtml}
+
+EXTRACTED DATA FIELDS:
+${JSON.stringify(extractedData, null, 2)}
+
+TASK: 
+The template has ${placeholderCount} placeholder positions marked as {} in sequential order. You need to determine which extracted data field should go in each position by analyzing the context around each placeholder.
+
+ANALYSIS STEPS:
+1. Look at the text/labels surrounding each {} placeholder in the template
+2. Match the context to the appropriate field from the extracted data
+3. Consider semantic meaning (e.g., "Batch Number:" should map to batch_number field)
+4. Handle variations in field naming (e.g., "_appearance__white_solid_powder_" maps to appearance contexts)
+5. Return the field names in the exact order they should fill the {} placeholders
+
+EXAMPLE CONTEXT ANALYSIS:
+- If you see "Batch Number:" followed by {}, map it to "batch_number"
+- If you see "Manufacturing Date:" followed by {}, map it to "manufacturing_date"  
+- If you see "<p>Appearance</p>" in a table row with {}, map it to "_appearance__white_solid_powder_"
+- If you see "Sodium hyaluronate content" in a table with {}, map it to "_sodium_hyaluronate_content___95_"
+
+FIELD NAMING PATTERNS:
+- Simple fields: product_name, batch_number, manufacturing_date, expiry_date, issued_date, test_result
+- Test result fields: _appearance__white_solid_powder_, _sodium_hyaluronate_content___95_, _protein___01_, etc.
+
+Return ONLY a JSON array with the field names in the exact order they should fill the {} placeholders:
+["field_name_for_position_1", "field_name_for_position_2", "field_name_for_position_3", ...]
+
+If a position cannot be mapped to any field, use null for that position.
+`;
+
+  try {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: llmModel,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.1,
+        max_tokens: 1000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Mistral mapping API error:', response.status, response.statusText, errorText);
+      throw new Error(`Mistral mapping API error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const content = result.choices[0]?.message?.content || '';
+    
+    console.log('🧠 Mistral template mapping response:', content);
+    
+    // Extract JSON from the response
+    const jsonMatch = content.match(/\[(.*?)\]/s);
+    if (!jsonMatch) {
+      throw new Error('No valid JSON array found in Mistral response');
+    }
+    
+    const mappingOrder = JSON.parse(`[${jsonMatch[1]}]`);
+    console.log('🎯 Intelligent field mapping order:', mappingOrder);
+    
+    return mappingOrder;
+    
+  } catch (error: any) {
+    console.error('Mistral mapping failed:', error);
+    // Fallback to basic field mapping based on common patterns
+    return getFallbackMapping(placeholderCount, Object.keys(extractedData));
+  }
+}
+
+function getFallbackMapping(placeholderCount: number, availableFields: string[]): string[] {
+  // Basic fallback mapping for common CoA template patterns
+  const commonOrder = [
+    "batch_number",
+    "manufacturing_date", 
+    "expiry_date",
+    "_appearance__white_solid_powder_",
+    "_molecular_weight_",
+    "_sodium_hyaluronate_content___95_",
+    "_protein___01_",
+    "_loss_on_drying___10_",
+    "_ph__5085_",
+    "_staphylococcus_aureus__negative_",
+    "_pseudomonas_aeruginosa__negative_",
+    "_heavy_metal__20_ppm_",
+    "_total_bacteria___100_cfug_",
+    "_yeast_and_molds___50_cfug_",
+    "issued_date",
+    "test_result"
+  ];
+  
+  const mapping: string[] = [];
+  for (let i = 0; i < placeholderCount; i++) {
+    if (i < commonOrder.length && availableFields.includes(commonOrder[i])) {
+      mapping.push(commonOrder[i]);
+    } else {
+      // Try to find any remaining field
+      const remainingField = availableFields.find(field => !mapping.includes(field));
+      mapping.push(remainingField || null);
+    }
+  }
+  
+  console.log('📋 Using fallback mapping:', mapping);
+  return mapping;
+}
