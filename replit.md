@@ -18,6 +18,16 @@ Preferred communication style: Simple, everyday language.
 - All core functionality verified and working: document upload, template selection, OCR processing, data extraction, and template preview
 - Application running cleanly on port 5000 with proper client/server separation
 
+## Recent Changes
+
+**Migration Completed (2025-08-26):**
+- Successfully migrated ChemDoc AI from Replit Agent to standard Replit environment
+- Fixed critical data extraction issue where template placeholders were showing instead of actual extracted values
+- Implemented data normalization function to map corrupted field names from AI extraction to clean template field names
+- Enhanced AI prompt engineering to ensure proper field name consistency
+- All core functionality verified and working: document upload, template selection, OCR processing, data extraction, and template preview
+- Application running cleanly on port 5000 with proper client/server separation
+
 ## System Architecture
 
 ### Frontend Architecture
