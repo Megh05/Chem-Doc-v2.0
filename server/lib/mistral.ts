@@ -86,16 +86,32 @@ export async function extractPlaceholdersFromTemplate(filePath: string): Promise
 
 async function processOCR(filePath: string, apiKey: string) {
   try {
-    const formData = new FormData();
-    formData.append('file', fs.createReadStream(filePath));
+    // Convert file to base64
+    const fileBuffer = fs.readFileSync(filePath);
+    const base64File = fileBuffer.toString('base64');
+    const mimeType = filePath.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+    const dataUrl = `data:${mimeType};base64,${base64File}`;
     
-    const response = await fetch('https://api.mistral.ai/v1/ocr/process', {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        ...formData.getHeaders()
+        'Content-Type': 'application/json'
       },
-      body: formData as any
+      body: JSON.stringify({
+        model: 'mistral-ocr-latest',
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image_url',
+            image_url: {
+              url: dataUrl
+            }
+          }]
+        }],
+        temperature: 0.1,
+        max_tokens: 4000
+      })
     });
 
     if (!response.ok) {
@@ -103,11 +119,12 @@ async function processOCR(filePath: string, apiKey: string) {
     }
 
     const result = await response.json();
+    const extractedText = result.choices?.[0]?.message?.content || '';
     
     return {
-      text: result.text || '',
+      text: extractedText,
       accuracy: Math.floor(Math.random() * 5) + 95, // 95-99% accuracy simulation
-      tokens: result.text ? result.text.split(/\s+/).length : 0
+      tokens: extractedText ? extractedText.split(/\s+/).length : 0
     };
     
   } catch (error) {
@@ -170,7 +187,15 @@ Response format:
     const extractedText = result.choices[0]?.message?.content || '{}';
     
     try {
-      const parsedData = JSON.parse(extractedText);
+      // Clean up JSON if wrapped in markdown code blocks
+      let cleanedText = extractedText.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      const parsedData = JSON.parse(cleanedText);
       return { data: parsedData };
     } catch (parseError) {
       console.error('Failed to parse LLM response as JSON:', parseError);
@@ -250,7 +275,15 @@ Response format:
     const extractedText = result.choices[0]?.message?.content || '[]';
     
     try {
-      const placeholders = JSON.parse(extractedText);
+      // Clean up JSON if wrapped in markdown code blocks
+      let cleanedText = extractedText.trim();
+      if (cleanedText.startsWith('```json')) {
+        cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedText.startsWith('```')) {
+        cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      const placeholders = JSON.parse(cleanedText);
       return Array.isArray(placeholders) ? placeholders : [];
     } catch (parseError) {
       console.error('Failed to parse placeholder response as JSON:', parseError);
