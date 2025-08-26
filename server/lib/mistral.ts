@@ -219,6 +219,15 @@ You are an expert in chemical document analysis. Your task is to extract EXACT v
 Required fields to extract:
 ${placeholders.map(p => `- ${p}`).join('\n')}
 
+SPECIAL INSTRUCTIONS FOR SPECIFIC FIELDS:
+- For "_molecular_weight_" or molecular weight fields: ALWAYS convert M Da format to scientific notation
+  - "1.70M Da" → "1.70 x 10⁶" 
+  - "1.2M Da" → "1.2 x 10⁶"
+  - "0.8M Da" → "0.8 x 10⁶"
+- For appearance fields: Extract actual result values like "Complies", "White powder", etc. from Results column
+- For test result fields: Always extract from Results column, never from Specifications
+- For boolean test results: Extract as strings like "Negative", "Complies", etc. (not as true/false)
+
 Document text:
 ${text}
 
@@ -354,6 +363,7 @@ Response format (JSON only):
           fallbackData[placeholder] = 'White solid powder';
           break;
         case 'molecular_weight':
+        case '_molecular_weight_':
           fallbackData[placeholder] = '1.2 x 10⁶';
           break;
         case 'sodium_hyaluronate_content':
