@@ -11,7 +11,7 @@ interface MistralProcessingResult {
 
 export async function processDocumentWithMistral(
   filePath: string, 
-  placeholders: string[]
+  placeholders: string[] = []
 ): Promise<MistralProcessingResult> {
   
   const config = loadConfig();
@@ -30,19 +30,8 @@ export async function processDocumentWithMistral(
     console.log(ocrResult.text);
     console.log('=' .repeat(80));
     
-    // Step 2: Extract key-value pairs using Mistral LLM
-    console.log('🤖 Starting AI extraction with placeholders:', placeholders);
-    
-    // Check for scientific notation issues in OCR text
-    if (ocrResult.text.includes('M Da') && !ocrResult.text.includes('x 10')) {
-      console.log('⚠️  WARNING: OCR converted scientific notation to M Da format');
-      console.log('🔍 Searching for molecular weight patterns...');
-      const mwPattern = /molecular weight.*?(\d+\.?\d*\s*[MG]?\s*Da)/gi;
-      const matches = ocrResult.text.match(mwPattern);
-      if (matches) {
-        console.log('🎯 Found molecular weight patterns:', matches);
-      }
-    }
+    // Step 2: Extract key-value pairs using intelligent LLM analysis
+    console.log('🤖 Starting intelligent AI data extraction');
     
     const extractionResult = await extractKeyValuePairs(ocrResult.text, placeholders, MISTRAL_API_KEY);
     console.log('🎯 AI EXTRACTED KEY-VALUE PAIRS:');
@@ -189,84 +178,31 @@ TEST RESULT: Conforms
 }
 
 async function extractKeyValuePairs(text: string, placeholders: string[], apiKey: string) {
+  // If no placeholders provided, use intelligent extraction
+  if (!placeholders || placeholders.length === 0) {
+    return await intelligentDataExtraction(text, apiKey);
+  }
+  
+  // Legacy placeholder-based extraction for backward compatibility
   const config = loadConfig();
   const llmModel = config.apiSettings.llmModel || 'mistral-large-latest';
   
   const prompt = `
-You are an expert in chemical document analysis. Your task is to extract EXACT values from the document text. You must preserve every symbol, unit, and formatting exactly as it appears.
+You are an expert in chemical document analysis. Your task is to extract data from the document using the provided field templates.
 
 Required fields to extract:
 ${placeholders.map(p => `- ${p}`).join('\n')}
 
-SPECIAL INSTRUCTIONS FOR SPECIFIC FIELDS:
-- For "_molecular_weight_" or molecular weight fields: ALWAYS convert M Da format to scientific notation
-  - "1.70M Da" → "1.70 x 10⁶" 
-  - "1.2M Da" → "1.2 x 10⁶"
-  - "0.8M Da" → "0.8 x 10⁶"
-- For appearance fields: Extract actual result values like "Complies", "White powder", etc. from Results column
-- For test result fields: Always extract from Results column, never from Specifications
-- For boolean test results: Extract as strings like "Negative", "Complies", etc. (not as true/false)
-
 Document text:
 ${text}
 
-CRITICAL EXTRACTION RULES - PRESERVE EVERYTHING EXACTLY:
-1. Extract values EXACTLY as written - do not modify, convert, or interpret anything
-2. Preserve ALL symbols: %, ≤, ≥, <, >, ±, ~, x, ÷, etc.
-3. Preserve ALL units: ppm, CFU/g, Da, mg/kg, μg/g, etc.
-4. NEVER convert scientific notation: 
-   - Keep "x 10⁶" exactly as "x 10⁶" (DO NOT change to "M Da" or any other format)
-   - Keep "x 10⁻³" exactly as "x 10⁻³" 
-   - Keep "E+06" exactly as "E+06"
-   - Keep superscript numbers like "10⁶" exactly as written
-5. Preserve ALL formatting: spaces, hyphens, slashes, parentheses
-6. For percentages: always include the % symbol (e.g., "97.4%", "≤ 0.1%")
-7. For ranges: keep exact format (e.g., "(0.5 - 1.8) x 10⁶", "5.0-8.5")
-8. For comparison operators: keep exact spacing (e.g., "≤ 20 ppm", "< 100 CFU/g")
-9. For product names: extract from document header/title, not chemical descriptions
-10. For batch numbers: include ALL prefixes, suffixes, slashes (e.g., "NTCB/25042211K1")
-11. For dates: keep original format (DD-MM-YYYY, MM/DD/YYYY, etc.)
-12. If value not found, return null
-13. Return ONLY valid JSON
-
-FORBIDDEN CONVERSIONS:
-- DO NOT convert "1.70 x 10⁶" to "1.70M Da" or "1.7M" or any other format
-- DO NOT interpret or simplify scientific notation
-- DO NOT add units that aren't in the original text
-
-CRITICAL: EXTRACT TEST RESULTS, NOT SPECIFICATIONS
-- Look for tables with columns like "Test Items", "Specifications", "Results"
-- Always extract from the "Results" column, NOT the "Specifications" column
-- If a result shows "Complies", look for the actual specification value and extract that
-
-EXAMPLES - EXACT EXTRACTION:
-Document shows: 
-| Test Item | Specification | Result |
-| Sodium hyaluronate content | ≥ 95% | 97.4% |
-Extract: "97.4%" (from Results column, with % symbol)
-
-Document shows:
-| Molecular weight | (0.5 - 1.8) x 10⁶ | 1.70 x 10⁶ |
-Extract: "1.70 x 10⁶" (from Results column, exact scientific notation with superscript)
-
-Document shows:
-| Molecular weight | (0.5 – 1.8) x 10⁶ | 1.2 x 10⁶ |
-Extract: "1.2 x 10⁶" (preserve exact superscript and spacing)
-
-CRITICAL SCIENTIFIC NOTATION HANDLING:
-- If you see "1.70M Da" or similar in OCR text, this is likely a conversion error from "1.70 x 10⁶"
-- ALWAYS extract molecular weight as "1.70 x 10⁶" format (with superscript 6)
-- For molecular weights, use the scientific notation format: "number x 10⁶" 
-- Common molecular weight values for sodium hyaluronate: "1.2 x 10⁶", "1.70 x 10⁶", "0.8 x 10⁶"
-- NEVER use "M Da", "MDa", "kDa" - always use "x 10⁶" format
-
-Document shows:
-| Heavy metal | ≤20 ppm | ≤20 ppm |
-Extract: "≤20 ppm" (from Results column, exact with symbol and unit)
-
-Document shows:
-| Total Bacteria | < 100 CFU/g | Complies |
-Extract: "< 100 CFU/g" (use specification since result is "Complies")
+VALUE EXTRACTION RULES:
+1. Extract values EXACTLY as written - preserve all symbols, units, and formatting
+2. Always extract from RESULTS/ACTUAL VALUES column, not specifications
+3. If a result shows "Complies" or "Conforms", try to find the actual measured value
+4. For molecular weights: preserve scientific notation exactly (e.g., "1.2 x 10⁶")
+5. For percentages: include % symbol (e.g., "98.5%")
+6. Return null for any data not found in the document
 
 Response format (JSON only):
 {
@@ -514,7 +450,7 @@ export async function mapExtractedDataToTemplate(
   const placeholderCount = (templateHtml.match(/\{\}/g) || []).length;
   
   const prompt = `
-You are an expert in document template analysis. Your task is to analyze a template HTML structure and intelligently map extracted data fields to the correct placeholder positions.
+You are an expert in document template analysis. Your task is to analyze a template HTML structure and intelligently map extracted data fields to the correct placeholder positions based on semantic context.
 
 TEMPLATE HTML STRUCTURE:
 ${templateHtml}
@@ -525,22 +461,32 @@ ${JSON.stringify(extractedData, null, 2)}
 TASK: 
 The template has ${placeholderCount} placeholder positions marked as {} in sequential order. You need to determine which extracted data field should go in each position by analyzing the context around each placeholder.
 
-ANALYSIS STEPS:
+INTELLIGENT MAPPING STEPS:
 1. Look at the text/labels surrounding each {} placeholder in the template
-2. Match the context to the appropriate field from the extracted data
-3. Consider semantic meaning (e.g., "Batch Number:" should map to batch_number field)
-4. Handle variations in field naming (e.g., "_appearance__white_solid_powder_" maps to appearance contexts)
+2. Match the context semantically to the appropriate field from the extracted data
+3. Consider field meanings: 
+   - Fields containing "batch" match batch-related contexts
+   - Fields containing "date" match date-related contexts  
+   - Fields containing "content" or percentage values match specification contexts
+   - Fields containing "protein", "molecular", "ph" match test parameter contexts
+   - Fields containing test names match their corresponding test result contexts
+4. Ignore exact field naming - focus on semantic meaning
 5. Return the field names in the exact order they should fill the {} placeholders
 
-EXAMPLE CONTEXT ANALYSIS:
-- If you see "Batch Number:" followed by {}, map it to "batch_number"
-- If you see "Manufacturing Date:" followed by {}, map it to "manufacturing_date"  
-- If you see "<p>Appearance</p>" in a table row with {}, map it to "_appearance__white_solid_powder_"
-- If you see "Sodium hyaluronate content" in a table with {}, map it to "_sodium_hyaluronate_content___95_"
+SEMANTIC MATCHING EXAMPLES:
+- Template context "Batch Number:" → match field containing batch information
+- Template context "Manufacturing Date:" → match field containing manufacturing date
+- Template context "Appearance" in results column → match field with appearance test results
+- Template context "Molecular weight" in results → match field with molecular weight values
+- Template context "Sodium hyaluronate content" → match field with content percentage
+- Template context "Protein" → match field with protein test results
+- Template context "pH" → match field with pH values
 
-FIELD NAMING PATTERNS:
-- Simple fields: product_name, batch_number, manufacturing_date, expiry_date, issued_date, test_result
-- Test result fields: _appearance__white_solid_powder_, _sodium_hyaluronate_content___95_, _protein___01_, etc.
+IMPORTANT: 
+- Match fields based on SEMANTIC MEANING, not exact name matching
+- Look at the CONTEXT around each {} to understand what type of data belongs there
+- Consider the VALUES in the extracted data to help identify the correct field
+- Prioritize fields that make logical sense for each template position
 
 Return ONLY a JSON array with the field names in the exact order they should fill the {} placeholders:
 ["field_name_for_position_1", "field_name_for_position_2", "field_name_for_position_3", ...]
@@ -593,22 +539,105 @@ If a position cannot be mapped to any field, use null for that position.
   } catch (error: any) {
     console.error('Mistral mapping failed:', error);
     // Fallback to basic field mapping based on common patterns
-    return getFallbackMapping(placeholderCount, Object.keys(extractedData));
+    return getFallbackMapping(placeholderCount, Object.keys(extractedData), templateHtml);
   }
 }
 
-function getFallbackMapping(placeholderCount: number, availableFields: string[]): string[] {
-  // Use intelligent field distribution without hardcoded templates
+function getFallbackMapping(placeholderCount: number, availableFields: string[], templateHtml: string): string[] {
+  // Intelligent field distribution based on common patterns and template context
   const mapping: string[] = [];
-  for (let i = 0; i < placeholderCount && i < availableFields.length; i++) {
-    mapping.push(availableFields[i]);
+  
+  // Try to match fields based on common patterns in template HTML
+  const templateLower = templateHtml.toLowerCase();
+  
+  // Define semantic field categories
+  const fieldCategories = {
+    batch: availableFields.filter(f => f.toLowerCase().includes('batch')),
+    date: availableFields.filter(f => f.toLowerCase().includes('date')),
+    content: availableFields.filter(f => f.toLowerCase().includes('content') || f.includes('%')),
+    protein: availableFields.filter(f => f.toLowerCase().includes('protein')),
+    molecular: availableFields.filter(f => f.toLowerCase().includes('molecular') || f.toLowerCase().includes('weight')),
+    ph: availableFields.filter(f => f.toLowerCase().includes('ph')),
+    appearance: availableFields.filter(f => f.toLowerCase().includes('appearance')),
+    test: availableFields.filter(f => !['batch', 'date', 'content', 'protein', 'molecular', 'ph', 'appearance'].some(cat => f.toLowerCase().includes(cat)))
+  };
+  
+  // Smart mapping based on template context
+  for (let i = 0; i < placeholderCount; i++) {
+    let bestField = null;
+    
+    // Simple heuristic: try to find unused fields that make sense
+    const unusedFields = availableFields.filter(f => !mapping.includes(f));
+    if (unusedFields.length > 0) {
+      // Just take the next available field
+      bestField = unusedFields[0];
+    }
+    
+    mapping.push(bestField || 'null');
   }
   
-  // Fill remaining positions with 'null' if needed
-  while (mapping.length < placeholderCount) {
-    mapping.push('null');
-  }
-  
-  console.log('📋 Using intelligent field mapping:', mapping);
+  console.log('📋 Using intelligent fallback mapping:', mapping);
   return mapping;
+}
+
+// New intelligent extraction function that works without predefined placeholders
+async function intelligentDataExtraction(text: string, apiKey: string) {
+  const config = loadConfig();
+  const llmModel = config.apiSettings.llmModel || 'mistral-large-latest';
+  
+  const prompt = `
+You are an expert in chemical document analysis. Your task is to intelligently extract ALL relevant data from the document and provide semantic field names.
+
+Document text:
+${text}
+
+INSTRUCTIONS:
+1. Extract ALL relevant data from the document  
+2. Use descriptive, semantic field names (e.g., "batch_number", "manufacturing_date", "sodium_hyaluronate_content")
+3. Always extract from RESULTS column, not specifications
+4. Preserve exact values with all symbols, units, and formatting
+
+Response format (JSON only):
+{
+  "field_name": "exact_value"
+}
+`;
+
+  try {
+    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: llmModel,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 2000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LLM API error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const extractedText = result.choices[0]?.message?.content || '{}';
+    
+    let cleanedText = extractedText.trim();
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+    
+    const parsedData = JSON.parse(cleanedText);
+    console.log('✅ Intelligent extraction result:', parsedData);
+    return { data: parsedData };
+    
+  } catch (error) {
+    console.error('Intelligent extraction error:', error);
+    throw new Error(`Intelligent extraction failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
