@@ -401,14 +401,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const templatePath = path.join(uploadDir, targetFile);
       const documentData = data || job.extractedData || {};
       
+      // Get template structure for intelligent mapping
+      const structure = await parseTemplateStructure(templatePath);
+      let intelligentMapping: string[] | null = null;
+      
+      // Try to get intelligent mapping for better placeholder replacement
+      const config = loadConfig();
+      const MISTRAL_API_KEY = config.apiSettings.mistralApiKey || process.env.MISTRAL_API_KEY;
+      
+      if (MISTRAL_API_KEY && Object.keys(documentData).length > 0) {
+        try {
+          intelligentMapping = await mapExtractedDataToTemplate(
+            documentData,
+            structure.html,
+            MISTRAL_API_KEY
+          );
+          console.log('🎯 Using intelligent mapping:', intelligentMapping);
+        } catch (error) {
+          console.error('Failed to get intelligent mapping:', error);
+        }
+      }
+      
 
       if (format === 'pdf') {
         // Generate PDF using pdf-lib for better ES module compatibility
         const { PDFDocument, rgb } = await import('pdf-lib');
-        const structure = await parseTemplateStructure(templatePath);
         let htmlContent = structure.html;
         
-        // Replace placeholders in HTML with actual data
+        // Replace {} placeholders in sequence using intelligent mapping
+        if (intelligentMapping) {
+          let placeholderIndex = 0;
+          htmlContent = htmlContent.replace(/\{\}/g, () => {
+            if (placeholderIndex < intelligentMapping!.length) {
+              const fieldName = intelligentMapping![placeholderIndex];
+              const value = documentData[fieldName] || '';
+              placeholderIndex++;
+              return value.toString();
+            }
+            return '';
+          });
+        } else {
+          // Fallback: replace {} placeholders with data in field order
+          const fieldNames = Object.keys(documentData);
+          let placeholderIndex = 0;
+          htmlContent = htmlContent.replace(/\{\}/g, () => {
+            if (placeholderIndex < fieldNames.length) {
+              const fieldName = fieldNames[placeholderIndex];
+              const value = documentData[fieldName] || '';
+              placeholderIndex++;
+              return value.toString();
+            }
+            return '';
+          });
+        }
+        
+        // Also replace any named placeholders
         Object.keys(documentData).forEach(key => {
           const value = documentData[key] || '';
           const placeholderPatterns = [
@@ -457,8 +504,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.send(Buffer.from(pdfBytes));
         
       } else if (format === 'docx') {
-        // Generate DOCX using the template-based approach
-        const filledDocxBuffer = await fillTemplateWithData(templatePath, documentData);
+        // Generate DOCX using the template-based approach with intelligent mapping
+        const filledDocxBuffer = await fillTemplateWithData(templatePath, documentData, intelligentMapping);
         
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.docx"`);
@@ -510,11 +557,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (format === 'pdf') {
+        // Generate proper PDF using the same approach as the main endpoint
+        const { PDFDocument, rgb } = await import('pdf-lib');
+        
+        // Generate HTML content with filled data
         const htmlContent = generateHTMLContent(template, savedDocument.finalData);
         
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Content-Disposition', `attachment; filename="${savedDocument.name}.html"`);
-        res.send(htmlContent);
+        // Create a PDF document
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([595, 842]); // A4 size
+        const { width, height } = page.getSize();
+        
+        // Extract text content from HTML (simple approach)
+        const textContent = htmlContent
+          .replace(/<[^>]*>/g, '\n') // Remove HTML tags
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+        
+        const lines = textContent.split('\n').filter(line => line.trim());
+        let yPosition = height - 50;
+        
+        // Add document title
+        if (template.name) {
+          page.drawText(template.name, {
+            x: 50,
+            y: yPosition,
+            size: 16,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 30;
+        }
+        
+        // Add content lines
+        for (const line of lines.slice(0, 35)) { // Limit to fit on page
+          if (yPosition < 50) break;
+          
+          page.drawText(line.trim().substring(0, 80), { // Limit line length
+            x: 50,
+            y: yPosition,
+            size: 10,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 15;
+        }
+        
+        const pdfBytes = await pdfDoc.save();
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${savedDocument.name}.pdf"`);
+        res.send(Buffer.from(pdfBytes));
         
       } else if (format === 'docx') {
         const docx = officegen('docx');
@@ -593,7 +684,7 @@ async function parseTemplateStructure(templatePath: string) {
 }
 
 // Helper function to fill template with extracted data
-async function fillTemplateWithData(templatePath: string, extractedData: Record<string, any>) {
+async function fillTemplateWithData(templatePath: string, extractedData: Record<string, any>, intelligentMapping?: string[] | null) {
   try {
     const templateBuffer = fs.readFileSync(templatePath);
     const zip = await JSZip.loadAsync(templateBuffer);
@@ -606,6 +697,35 @@ async function fillTemplateWithData(templatePath: string, extractedData: Record<
 
     // Replace placeholders in the XML
     let modifiedXml = documentXml;
+    
+    // First, replace {} placeholders in sequence using intelligent mapping
+    if (intelligentMapping) {
+      let placeholderIndex = 0;
+      modifiedXml = modifiedXml.replace(/\{\}/g, () => {
+        if (placeholderIndex < intelligentMapping!.length) {
+          const fieldName = intelligentMapping![placeholderIndex];
+          const value = extractedData[fieldName] || '';
+          placeholderIndex++;
+          return value.toString();
+        }
+        return '';
+      });
+    } else {
+      // Fallback: replace {} placeholders with data in field order
+      const fieldNames = Object.keys(extractedData);
+      let placeholderIndex = 0;
+      modifiedXml = modifiedXml.replace(/\{\}/g, () => {
+        if (placeholderIndex < fieldNames.length) {
+          const fieldName = fieldNames[placeholderIndex];
+          const value = extractedData[fieldName] || '';
+          placeholderIndex++;
+          return value.toString();
+        }
+        return '';
+      });
+    }
+    
+    // Also replace any named placeholders that might exist
     Object.keys(extractedData).forEach(key => {
       const value = extractedData[key] || '';
       // Replace various placeholder formats
