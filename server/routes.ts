@@ -398,16 +398,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const templatePath = path.join(uploadDir, targetFile);
       const documentData = data || job.extractedData || {};
+      
+      // Debug: Log the actual data being used
+      console.log('🔍 Document data for generation:', JSON.stringify(documentData, null, 2));
+      console.log('🔍 Job extracted data:', JSON.stringify(job.extractedData, null, 2));
 
       if (format === 'pdf') {
         // Generate actual PDF using Puppeteer
-        const puppeteer = require('puppeteer');
+        const puppeteer = await import('puppeteer');
         const structure = await parseTemplateStructure(templatePath);
         let htmlContent = structure.html;
         
         // Replace placeholders in HTML with actual data
+        console.log('🔍 HTML content before replacement:', htmlContent.substring(0, 200));
+        
         Object.keys(documentData).forEach(key => {
           const value = documentData[key] || '';
+          console.log(`🔄 Replacing {${key}} with: "${value}"`);
+          
           const placeholderPatterns = [
             new RegExp(`\\{${key}\\}`, 'g'),
             new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
@@ -416,9 +424,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ];
           
           placeholderPatterns.forEach(pattern => {
+            const beforeReplace = htmlContent;
             htmlContent = htmlContent.replace(pattern, value);
+            if (beforeReplace !== htmlContent) {
+              console.log(`✅ Successfully replaced pattern ${pattern} with "${value}"`);
+            }
           });
         });
+        
+        console.log('🔍 HTML content after replacement:', htmlContent.substring(0, 200));
         
         // Add CSS styling for better PDF appearance
         const styledHtmlContent = `
@@ -476,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `;
         
         // Launch Puppeteer and generate PDF
-        const browser = await puppeteer.launch({
+        const browser = await puppeteer.default.launch({
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
