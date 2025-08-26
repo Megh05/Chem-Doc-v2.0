@@ -696,8 +696,8 @@ async function processDocumentInBackground(jobId: string) {
 
     const startTime = Date.now();
     
-    // Process with Mistral AI using intelligent extraction (no placeholders needed)
-    const result = await processDocumentWithMistral(document.filePath, []);
+    // Process with Mistral AI using template-guided extraction 
+    const result = await processDocumentWithMistral(document.filePath, template.html || '');
     
     const processingTime = Math.floor((Date.now() - startTime) / 1000);
     

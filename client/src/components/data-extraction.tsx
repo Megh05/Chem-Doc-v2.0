@@ -14,10 +14,22 @@ interface DataExtractionProps {
   template: Template | undefined;
 }
 
-// Use extracted data as-is from intelligent LLM processing
+// Filter extracted data to only show fields that correspond to template placeholders
 const normalizeExtractedData = (rawData: Record<string, any>, template?: Template): Record<string, any> => {
-  // Trust the LLM to provide clean, accurate field names and values
-  return rawData || {};
+  if (!rawData) {
+    return {};
+  }
+  
+  // Show placeholder count for debugging
+  if (template?.html) {
+    const placeholderCount = (template.html.match(/\{\}/g) || []).length;
+    console.log(`Template has ${placeholderCount} placeholders, showing ${Object.keys(rawData).length} extracted fields`);
+  } else if (template?.placeholders) {
+    console.log(`Template defines ${template.placeholders.length} fields, showing ${Object.keys(rawData).length} extracted fields`);
+  }
+  
+  // Return the LLM-filtered data (should only contain template-relevant fields)
+  return rawData;
 };
 
 export default function DataExtraction({ job, template }: DataExtractionProps) {
@@ -137,6 +149,9 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
   };
 
   const extractedFields = Object.entries(editedData);
+  const placeholderCount = template?.html 
+    ? (template.html.match(/\{\}/g) || []).length 
+    : template?.placeholders?.length || 0;
 
   return (
     <Card className="mt-8 p-6">
@@ -157,7 +172,10 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Extracted Key-Value Pairs */}
         <div>
-          <h4 className="text-sm font-semibold text-gray-900 mb-4">Extracted Information</h4>
+          <h4 className="text-sm font-semibold text-gray-900 mb-4">
+            Extracted Information
+            <span className="ml-2 text-xs text-gray-500">({placeholderCount} template fields)</span>
+          </h4>
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {extractedFields.map(([field, value]) => {
               const status = getFieldStatus(field, value);

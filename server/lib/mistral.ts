@@ -11,7 +11,7 @@ interface MistralProcessingResult {
 
 export async function processDocumentWithMistral(
   filePath: string, 
-  placeholders: string[] = []
+  templateHtml?: string
 ): Promise<MistralProcessingResult> {
   
   const config = loadConfig();
@@ -30,9 +30,16 @@ export async function processDocumentWithMistral(
     console.log(ocrResult.text);
     console.log('=' .repeat(80));
     
-    // Step 2: Extract key-value pairs using intelligent LLM analysis
-    console.log('🤖 Starting intelligent AI data extraction');
+    // Step 2: Identify template placeholders first
+    let placeholders: string[] = [];
+    if (templateHtml) {
+      console.log('🔍 Identifying template placeholders...');
+      placeholders = await identifyTemplatePlaceholders(templateHtml, MISTRAL_API_KEY);
+      console.log('🎯 Found template placeholders:', placeholders);
+    }
     
+    // Step 3: Extract key-value pairs for identified placeholders only
+    console.log('🤖 Starting targeted AI data extraction');
     const extractionResult = await extractKeyValuePairs(ocrResult.text, placeholders, MISTRAL_API_KEY);
     console.log('🎯 AI EXTRACTED KEY-VALUE PAIRS:');
     console.log('=' .repeat(80));
@@ -178,35 +185,39 @@ TEST RESULT: Conforms
 }
 
 async function extractKeyValuePairs(text: string, placeholders: string[], apiKey: string) {
-  // If no placeholders provided, use intelligent extraction
+  // If no placeholders provided, return empty data (template must define placeholders)
   if (!placeholders || placeholders.length === 0) {
-    return await intelligentDataExtraction(text, apiKey);
+    console.log('⚠️  No template placeholders found - returning empty data');
+    return { data: {} };
   }
   
-  // Legacy placeholder-based extraction for backward compatibility
+  // Extract data only for the identified template placeholders
   const config = loadConfig();
   const llmModel = config.apiSettings.llmModel || 'mistral-large-latest';
   
   const prompt = `
-You are an expert in chemical document analysis. Your task is to extract data from the document using the provided field templates.
+You are an expert in chemical document analysis. Your task is to extract data from the document ONLY for the specified template fields.
 
-Required fields to extract:
+TEMPLATE FIELDS TO EXTRACT (extract ONLY these fields):
 ${placeholders.map(p => `- ${p}`).join('\n')}
 
 Document text:
 ${text}
 
-VALUE EXTRACTION RULES:
-1. Extract values EXACTLY as written - preserve all symbols, units, and formatting
-2. Always extract from RESULTS/ACTUAL VALUES column, not specifications
-3. If a result shows "Complies" or "Conforms", try to find the actual measured value
-4. For molecular weights: preserve scientific notation exactly (e.g., "1.2 x 10⁶")
-5. For percentages: include % symbol (e.g., "98.5%")
-6. Return null for any data not found in the document
+CRITICAL INSTRUCTIONS:
+1. Extract data ONLY for the template fields listed above
+2. Do NOT extract any other fields, even if you find additional data
+3. Extract values EXACTLY as written - preserve all symbols, units, and formatting
+4. Always extract from RESULTS/ACTUAL VALUES column, not specifications
+5. If a result shows "Complies" or "Conforms", try to find the actual measured value
+6. For molecular weights: preserve scientific notation exactly (e.g., "1.2 x 10⁶")
+7. For percentages: include % symbol (e.g., "98.5%")
+8. Return null for any template field not found in the document
+9. Use the EXACT field names from the template list above
 
-Response format (JSON only):
+Response format (JSON only containing ONLY the template fields):
 {
-  "field_name": "exact_value_or_null"
+  "exact_template_field_name": "exact_value_or_null"
 }
 `;
 

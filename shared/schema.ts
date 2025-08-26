@@ -14,6 +14,7 @@ export interface Template {
   fileName: string;
   fileSize: number;
   placeholders: string[]; // Dynamic placeholders extracted by LLM
+  html?: string; // Template HTML structure for rendering
   createdAt: Date;
   updatedAt: Date;
 }
