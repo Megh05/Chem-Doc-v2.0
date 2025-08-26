@@ -365,7 +365,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { jobId } = req.params;
       const { format, data } = req.body;
       
-      const job = await storage.getProcessingJob(jobId);
+      // Find job by either id or documentId to support both cases
+      const jobs = await storage.getProcessingJobs();
+      const job = jobs.find(j => j.id === jobId || j.documentId === jobId);
       if (!job) {
         return res.status(404).json({ message: "Processing job not found" });
       }
@@ -399,23 +401,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const templatePath = path.join(uploadDir, targetFile);
       const documentData = data || job.extractedData || {};
       
-      // Debug: Log the actual data being used
-      console.log('🔍 Document data for generation:', JSON.stringify(documentData, null, 2));
-      console.log('🔍 Job extracted data:', JSON.stringify(job.extractedData, null, 2));
 
       if (format === 'pdf') {
-        // Generate actual PDF using Puppeteer
-        const puppeteer = await import('puppeteer');
+        // Generate PDF using pdf-lib for better ES module compatibility
+        const { PDFDocument, rgb } = await import('pdf-lib');
         const structure = await parseTemplateStructure(templatePath);
         let htmlContent = structure.html;
         
         // Replace placeholders in HTML with actual data
-        console.log('🔍 HTML content before replacement:', htmlContent.substring(0, 200));
-        
         Object.keys(documentData).forEach(key => {
           const value = documentData[key] || '';
-          console.log(`🔄 Replacing {${key}} with: "${value}"`);
-          
           const placeholderPatterns = [
             new RegExp(`\\{${key}\\}`, 'g'),
             new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
@@ -424,101 +419,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ];
           
           placeholderPatterns.forEach(pattern => {
-            const beforeReplace = htmlContent;
             htmlContent = htmlContent.replace(pattern, value);
-            if (beforeReplace !== htmlContent) {
-              console.log(`✅ Successfully replaced pattern ${pattern} with "${value}"`);
-            }
           });
         });
         
-        console.log('🔍 HTML content after replacement:', htmlContent.substring(0, 200));
+        // Create a simple PDF with text content (until we get proper HTML-to-PDF working)
+        // This is a temporary solution to test data replacement
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([595, 842]); // A4 size
+        const { width, height } = page.getSize();
         
-        // Add CSS styling for better PDF appearance
-        const styledHtmlContent = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                margin: 40px; 
-                line-height: 1.6; 
-                color: #333;
-              }
-              h1, h2, h3 { 
-                color: #2c3e50; 
-                margin-top: 30px; 
-                margin-bottom: 15px;
-              }
-              table { 
-                width: 100%; 
-                border-collapse: collapse; 
-                margin: 20px 0;
-              }
-              th, td { 
-                border: 1px solid #ddd; 
-                padding: 12px; 
-                text-align: left;
-              }
-              th { 
-                background-color: #f5f5f5; 
-                font-weight: bold;
-              }
-              .header { 
-                text-align: center; 
-                margin-bottom: 30px;
-              }
-              .field-group { 
-                margin: 15px 0;
-              }
-              .field-label { 
-                font-weight: bold; 
-                display: inline-block; 
-                min-width: 200px;
-              }
-              .field-value { 
-                margin-left: 10px;
-              }
-            </style>
-          </head>
-          <body>
-            ${htmlContent}
-          </body>
-          </html>
-        `;
+        // Extract text content from HTML (simple approach)
+        const textContent = htmlContent
+          .replace(/<[^>]*>/g, '\n') // Remove HTML tags
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
         
-        // Launch Puppeteer and generate PDF
-        const browser = await puppeteer.default.launch({
-          headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+        const lines = textContent.split('\n').filter(line => line.trim());
+        let yPosition = height - 50;
         
-        try {
-          const page = await browser.newPage();
-          await page.setContent(styledHtmlContent, { waitUntil: 'networkidle0' });
+        for (const line of lines.slice(0, 40)) { // Limit to fit on page
+          if (yPosition < 50) break;
           
-          const pdfBuffer = await page.pdf({
-            format: 'A4',
-            margin: {
-              top: '20mm',
-              right: '20mm',
-              bottom: '20mm',
-              left: '20mm'
-            },
-            printBackground: true
+          page.drawText(line.trim().substring(0, 80), { // Limit line length
+            x: 50,
+            y: yPosition,
+            size: 10,
+            color: rgb(0, 0, 0),
           });
-          
-          await browser.close();
-          
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
-          res.send(pdfBuffer);
-        } catch (error) {
-          await browser.close();
-          throw error;
+          yPosition -= 15;
         }
+        
+        const pdfBytes = await pdfDoc.save();
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
+        res.send(Buffer.from(pdfBytes));
         
       } else if (format === 'docx') {
         // Generate DOCX using the template-based approach
