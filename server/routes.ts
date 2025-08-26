@@ -15,6 +15,16 @@ import { loadConfig, saveConfig, resetConfig } from "./config";
 import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema, insertSavedDocumentSchema } from "@shared/schema";
 import { processDocumentWithMistral, extractPlaceholdersFromTemplate, mapExtractedDataToTemplate } from "./lib/mistral";
 
+// XML escaping function to prevent corruption
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 // Field name normalization function
 function normalizeFieldName(corruptedName: string): string {
   // Map corrupted field names to clean template field names
@@ -751,7 +761,7 @@ async function fillTemplateWithData(templatePath: string, extractedData: Record<
           const fieldName = intelligentMapping![placeholderIndex];
           const value = extractedData[fieldName] || '';
           placeholderIndex++;
-          return value.toString();
+          return escapeXml(value.toString());
         }
         return '';
       });
@@ -764,7 +774,7 @@ async function fillTemplateWithData(templatePath: string, extractedData: Record<
           const fieldName = fieldNames[placeholderIndex];
           const value = extractedData[fieldName] || '';
           placeholderIndex++;
-          return value.toString();
+          return escapeXml(value.toString());
         }
         return '';
       });
@@ -772,7 +782,7 @@ async function fillTemplateWithData(templatePath: string, extractedData: Record<
     
     // Also replace any named placeholders that might exist
     Object.keys(extractedData).forEach(key => {
-      const value = extractedData[key] || '';
+      const value = escapeXml(extractedData[key]?.toString() || '');
       // Replace various placeholder formats
       const placeholderPatterns = [
         new RegExp(`\\{${key}\\}`, 'g'),
