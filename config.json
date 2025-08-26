@@ -1,5 +1,6 @@
 {
   "apiSettings": {
+    "mistralApiKey": "CQ3pvJOfl90ZDvu18BabtXSvu2lbRHYJ",
     "ocrEndpoint": "https://api.mistral.ai/v1/ocr/process",
     "llmModel": "mistral-small-latest"
   },
