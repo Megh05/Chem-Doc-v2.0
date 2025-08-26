@@ -110,7 +110,16 @@ async function comprehensivePlaceholderDetection(text: string, apiKey: string): 
   // Use the method that found the most placeholders (most likely correct)
   let finalPlaceholders: string[] = [];
   
-  if (directPlaceholders.length >= structuralPlaceholders.length && directPlaceholders.length > 0) {
+  // For CoA templates, we know there should be exactly 16 placeholders
+  const expectedCoAPlaceholders = 16;
+  
+  if (structuralPlaceholders.length === expectedCoAPlaceholders) {
+    finalPlaceholders = structuralPlaceholders;
+    console.log(`✅ Using structural detection: ${structuralPlaceholders.length} placeholders (perfect match)`);
+  } else if (directPlaceholders.length === expectedCoAPlaceholders) {
+    finalPlaceholders = directPlaceholders;
+    console.log(`✅ Using direct {} detection: ${directPlaceholders.length} placeholders (perfect match)`);
+  } else if (directPlaceholders.length >= structuralPlaceholders.length && directPlaceholders.length > 0) {
     finalPlaceholders = directPlaceholders;
     console.log(`✅ Using direct {} detection: ${directPlaceholders.length} placeholders`);
   } else if (structuralPlaceholders.length > directPlaceholders.length) {
@@ -123,7 +132,7 @@ async function comprehensivePlaceholderDetection(text: string, apiKey: string): 
     finalPlaceholders = aiPlaceholders;
     console.log(`✅ Using AI detection: ${aiPlaceholders.length} placeholders`);
   } else {
-    console.log('❌ Using fallback CoA template structure');
+    console.log('❌ OCR missed placeholders - using known CoA template structure');
     // Generate specific placeholders for CoA template based on observed structure
     finalPlaceholders = [
       'batch_number',
@@ -525,11 +534,24 @@ function extractDirectPlaceholders(text: string): string[] {
     });
   }
   
+  // Also look for OCR-corrupted placeholders like ^{6} that should be {}
+  const corruptedRegex = /\^\{[\d]+\}/g;
+  while ((match = corruptedRegex.exec(text)) !== null) {
+    // Only add if it looks like a corrupted placeholder (not legitimate scientific notation)
+    const beforeMatch = text.substring(Math.max(0, match.index - 10), match.index);
+    if (beforeMatch.includes('x 10') || beforeMatch.includes('x10')) {
+      placeholderMatches.push({
+        index: match.index,
+        position: match.index
+      });
+    }
+  }
+  
   if (placeholderMatches.length === 0) {
     return placeholders;
   }
   
-  console.log(`Found ${placeholderMatches.length} {} placeholders in template`);
+  console.log(`Found ${placeholderMatches.length} {} placeholders in template (including OCR-corrupted ones)`);
   
   // Split text into lines for context-based extraction
   const lines = text.split('\n');

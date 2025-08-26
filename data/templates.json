@@ -24,5 +24,31 @@
     "id": "f812f426-0870-4926-8c0b-ca025928912d",
     "createdAt": "2025-08-26T19:06:53.594Z",
     "updatedAt": "2025-08-26T19:06:53.594Z"
+  },
+  {
+    "name": "COA",
+    "type": "CoA",
+    "fileName": "NTCB COA COSCARE-H ACID-4.docx",
+    "fileSize": 172834,
+    "placeholders": [
+      "batch_number",
+      "manufacturing_date",
+      "expiry_date",
+      "_appearance__white_solid_powder_",
+      "_sodium_hyaluronate_content___95_",
+      "_protein___01_",
+      "_loss_on_drying___10_",
+      "_ph__5085_",
+      "_staphylococcus_aureus__negative_",
+      "_pseudomonas_aeruginosa__negative_",
+      "_heavy_metal__20_ppm_",
+      "_total_bacteria___100_cfug_",
+      "_yeast_and_molds___50_cfug_",
+      "issued_date",
+      "test_result"
+    ],
+    "id": "787d03ee-6604-4bf6-b20a-68acd052614f",
+    "createdAt": "2025-08-26T19:09:12.402Z",
+    "updatedAt": "2025-08-26T19:09:12.402Z"
   }
 ]
