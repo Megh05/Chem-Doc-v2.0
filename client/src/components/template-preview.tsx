@@ -25,7 +25,7 @@ export default function TemplatePreview({
   const [showFullPreview, setShowFullPreview] = useState(false);
 
   // Fetch the actual template structure
-  const { data: templateStructure, isLoading: isLoadingStructure } = useQuery({
+  const { data: templateStructure, isLoading: isLoadingStructure } = useQuery<{html: string; placeholders: string[]}>({
     queryKey: [`/api/templates/${template.id}/preview`],
     enabled: !!template.id,
   });
@@ -48,14 +48,42 @@ export default function TemplatePreview({
       // Use the actual template HTML structure and fill in the extracted values
       let filledHtml = templateStructure.html;
       
-      // Replace placeholders with extracted data, prioritizing non-empty values
+      // Since the template HTML has positional {} placeholders, we need to replace them
+      // in the order they appear with the values from the template.placeholders array
+      const placeholderOrder = template.placeholders || [];
+      
+      // Replace {} placeholders in sequence with their corresponding extracted data
+      let placeholderIndex = 0;
+      filledHtml = filledHtml.replace(/\{\}/g, () => {
+        if (placeholderIndex < placeholderOrder.length) {
+          const fieldName = placeholderOrder[placeholderIndex];
+          const value = extractedData[fieldName];
+          placeholderIndex++;
+          
+          // Format the value appropriately
+          if (value === null || value === undefined || value === '') {
+            return '';
+          }
+          if (typeof value === 'boolean') {
+            return value ? 'Complies' : 'Non-compliant';
+          }
+          if (typeof value === 'number') {
+            return value.toString() + (fieldName.includes('ph') ? '' : 
+                   fieldName.includes('content') || fieldName.includes('protein') || fieldName.includes('drying') ? '%' : '');
+          }
+          return value.toString();
+        }
+        return '';
+      });
+      
+      // Also handle any named placeholders that might exist
       const allPlaceholders = new Set([
         ...Object.keys(extractedData),
         ...(template.placeholders || [])
       ]);
 
       allPlaceholders.forEach(key => {
-        const value = extractedData[key] || ''; // Use empty string instead of showing placeholder
+        const value = extractedData[key] || '';
         const placeholderPatterns = [
           new RegExp(`\\{${key}\\}`, 'g'),
           new RegExp(`\\{\\{${key}\\}\\}`, 'g'),
