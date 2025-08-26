@@ -316,9 +316,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (format === 'docx') {
         const docx = officegen('docx');
         
-        // Add title
+        // Add dynamic title based on template type
+        const documentTitle = template.type === 'TDS' ? 'TECHNICAL DATA SHEET' : 
+                             template.type === 'MDMS' ? 'MATERIAL DATA MANAGEMENT SHEET' : 
+                             'CERTIFICATE OF ANALYSIS';
         const title = docx.createP();
-        title.addText('CERTIFICATE OF ANALYSIS', { font_face: 'Arial', font_size: 16, bold: true });
+        title.addText(documentTitle, { font_face: 'Arial', font_size: 16, bold: true });
         title.options.align = 'center';
         
         // Add content
@@ -388,9 +391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (format === 'docx') {
         const docx = officegen('docx');
         
-        // Add title
+        // Add dynamic title based on template type
+        const documentTitle = template.type === 'TDS' ? 'TECHNICAL DATA SHEET' : 
+                             template.type === 'MDMS' ? 'MATERIAL DATA MANAGEMENT SHEET' : 
+                             'CERTIFICATE OF ANALYSIS';
         const title = docx.createP();
-        title.addText('CERTIFICATE OF ANALYSIS', { font_face: 'Arial', font_size: 16, bold: true });
+        title.addText(documentTitle, { font_face: 'Arial', font_size: 16, bold: true });
         title.options.align = 'center';
         
         // Add content
@@ -433,12 +439,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 }
 
 function generateHTMLContent(template: any, data: Record<string, any>): string {
+  // Generate document title based on template type
+  const documentTitle = template.type === 'TDS' ? 'Technical Data Sheet' : 
+                       template.type === 'MDMS' ? 'Material Data Management Sheet' : 
+                       'Certificate of Analysis';
+  
+  // Generate dynamic field rows based on template placeholders
+  const fieldRows = template.placeholders
+    .filter((placeholder: string) => data[placeholder] !== null && data[placeholder] !== undefined)
+    .map((placeholder: string) => {
+      const label = placeholder.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      return `
+        <div class="field-row">
+          <span class="label">${label}:</span>
+          <span class="value">${data[placeholder] || ''}</span>
+        </div>
+      `;
+    }).join('');
+
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Certificate of Analysis</title>
+      <title>${documentTitle}</title>
       <style>
         body { font-family: Arial, sans-serif; margin: 40px; }
         .header { text-align: center; margin-bottom: 30px; }
@@ -446,121 +470,18 @@ function generateHTMLContent(template: any, data: Record<string, any>): string {
         .field-row { display: flex; justify-content: space-between; margin: 10px 0; }
         .label { font-weight: bold; }
         .value { color: #2563eb; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background-color: #f5f5f5; font-weight: bold; }
         .footer { text-align: center; margin-top: 30px; }
       </style>
     </head>
     <body>
       <div class="header">
-        <div class="title">CERTIFICATE OF ANALYSIS</div>
+        <div class="title">${documentTitle.toUpperCase()}</div>
       </div>
       
-      <div class="field-row">
-        <span class="label">Product Name:</span>
-        <span class="value">${data.product_name || ''}</span>
-      </div>
-      
-      <div class="field-row">
-        <span class="label">INCI Name:</span>
-        <span class="value">${data.inci_name || ''}</span>
-      </div>
-      
-      <div class="field-row">
-        <span class="label">Batch Number:</span>
-        <span class="value">${data.batch_number || ''}</span>
-      </div>
-      
-      <div class="field-row">
-        <span class="label">Manufacturing Date:</span>
-        <span class="value">${data.manufacturing_date || ''}</span>
-      </div>
-      
-      <div class="field-row">
-        <span class="label">Expiry Date:</span>
-        <span class="value">${data.expiry_date || ''}</span>
-      </div>
-      
-      <table>
-        <thead>
-          <tr>
-            <th>Test Items</th>
-            <th>Specifications</th>
-            <th>Results</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Appearance</td>
-            <td>White solid powder</td>
-            <td>${data.appearance || ''}</td>
-          </tr>
-          <tr>
-            <td>Molecular weight</td>
-            <td>(0.5 – 1.8) x 10⁶</td>
-            <td>${data.molecular_weight || ''}</td>
-          </tr>
-          <tr>
-            <td>Sodium hyaluronate content</td>
-            <td>≥ 95%</td>
-            <td>${data.sodium_hyaluronate_content || ''}</td>
-          </tr>
-          <tr>
-            <td>Protein</td>
-            <td>≤ 0.1%</td>
-            <td>${data.protein || ''}</td>
-          </tr>
-          <tr>
-            <td>Loss on drying</td>
-            <td>≤ 10%</td>
-            <td>${data.loss_on_drying || ''}</td>
-          </tr>
-          <tr>
-            <td>pH</td>
-            <td>5.0-8.5</td>
-            <td>${data.ph || ''}</td>
-          </tr>
-          <tr>
-            <td>Staphylococcus Aureus</td>
-            <td>Negative</td>
-            <td>${data.staphylococcus_aureus || ''}</td>
-          </tr>
-          <tr>
-            <td>Pseudomonas Aeruginosa</td>
-            <td>Negative</td>
-            <td>${data.pseudomonas_aeruginosa || ''}</td>
-          </tr>
-          <tr>
-            <td>Heavy metal</td>
-            <td>≤20 ppm</td>
-            <td>${data.heavy_metal || ''}</td>
-          </tr>
-          <tr>
-            <td>Total Bacteria</td>
-            <td>&lt; 100 CFU/g</td>
-            <td>${data.total_bacteria || ''}</td>
-          </tr>
-          <tr>
-            <td>Yeast and molds</td>
-            <td>&lt; 50 CFU/g</td>
-            <td>${data.yeast_and_molds || ''}</td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <div class="field-row">
-        <span class="label">ISSUED DATE:</span>
-        <span class="value">${data.issued_date || ''}</span>
-      </div>
-      
-      <div class="field-row">
-        <span class="label">TEST RESULT:</span>
-        <span class="value">${data.test_result || ''}</span>
-      </div>
+      ${fieldRows}
       
       <div class="footer">
-        <strong>Nano Tech Chemical Brothers Pvt. Ltd.</strong>
+        <strong>Document Generated by ChemDoc AI</strong>
       </div>
     </body>
     </html>
@@ -568,30 +489,31 @@ function generateHTMLContent(template: any, data: Record<string, any>): string {
 }
 
 function generateDocxContent(template: any, data: Record<string, any>) {
-  return [
-    { text: '\n' },
-    { text: `Product Name: ${data.product_name || ''}` },
-    { text: `INCI Name: ${data.inci_name || ''}` },
-    { text: `Batch Number: ${data.batch_number || ''}` },
-    { text: `Manufacturing Date: ${data.manufacturing_date || ''}` },
-    { text: `Expiry Date: ${data.expiry_date || ''}` },
-    { text: '\n\nTest Results:' },
-    { text: `Appearance: ${data.appearance || ''}` },
-    { text: `Molecular weight: ${data.molecular_weight || ''}` },
-    { text: `Sodium hyaluronate content: ${data.sodium_hyaluronate_content || ''}` },
-    { text: `Protein: ${data.protein || ''}` },
-    { text: `Loss on drying: ${data.loss_on_drying || ''}` },
-    { text: `pH: ${data.ph || ''}` },
-    { text: `Staphylococcus Aureus: ${data.staphylococcus_aureus || ''}` },
-    { text: `Pseudomonas Aeruginosa: ${data.pseudomonas_aeruginosa || ''}` },
-    { text: `Heavy metal: ${data.heavy_metal || ''}` },
-    { text: `Total Bacteria: ${data.total_bacteria || ''}` },
-    { text: `Yeast and molds: ${data.yeast_and_molds || ''}` },
-    { text: '\n' },
-    { text: `ISSUED DATE: ${data.issued_date || ''}` },
-    { text: `TEST RESULT: ${data.test_result || ''}` },
-    { text: '\n\nNano Tech Chemical Brothers Pvt. Ltd.', options: { bold: true } }
+  // Generate document title based on template type
+  const documentTitle = template.type === 'TDS' ? 'Technical Data Sheet' : 
+                       template.type === 'MDMS' ? 'Material Data Management Sheet' : 
+                       'Certificate of Analysis';
+  
+  // Generate dynamic content based on template placeholders
+  const content = [
+    { text: documentTitle, options: { font_size: 16, bold: true } },
+    { text: '\n' }
   ];
+  
+  // Add all fields from template placeholders that have values
+  template.placeholders.forEach((placeholder: string) => {
+    if (data[placeholder] !== null && data[placeholder] !== undefined && data[placeholder] !== '') {
+      const label = placeholder.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      content.push({ text: `${label}: ${data[placeholder]}` });
+    }
+  });
+  
+  content.push(
+    { text: '\n' },
+    { text: 'Document Generated by ChemDoc AI', options: { bold: true } }
+  );
+  
+  return content;
 }
 
 async function processDocumentInBackground(jobId: string) {

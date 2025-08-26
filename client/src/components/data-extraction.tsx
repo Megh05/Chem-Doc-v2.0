@@ -15,34 +15,51 @@ interface DataExtractionProps {
 }
 
 // Function to normalize field names from corrupted extraction to clean names
-const normalizeExtractedData = (rawData: Record<string, any>, job: ProcessingJob): Record<string, any> => {
-  const fieldMapping: Record<string, string> = {
-    // Map corrupted field names to clean ones
-    '_appearance__white_solid_powder_': 'appearance',
-    '_sodium_hyaluronate_content___95_': 'sodium_hyaluronate_content',
-    '_protein___01_': 'protein',
-    '_loss_on_drying___10_': 'loss_on_drying',
-    '_ph__5085_': 'ph',
-    '_staphylococcus_aureus__negative_': 'staphylococcus_aureus',
-    '_pseudomonas_aeruginosa__negative_': 'pseudomonas_aeruginosa',
-    '_heavy_metal__20_ppm_': 'heavy_metal',
-    '_total_bacteria___100_cfug_': 'total_bacteria',
-    '_yeast_and_molds___50_cfug_': 'yeast_and_molds',
-  };
-
+const normalizeExtractedData = (rawData: Record<string, any>, template?: Template): Record<string, any> => {
   const normalizedData: Record<string, any> = {};
   
-  // Copy direct matches first
+  // Get template placeholders to know expected field names
+  const templatePlaceholders = new Set((template?.placeholders as string[]) || []);
+  
+  // Copy direct matches first (clean field names)
   Object.keys(rawData).forEach(key => {
-    if (!key.startsWith('_')) {
+    if (!key.startsWith('_') && (templatePlaceholders.has(key) || templatePlaceholders.size === 0)) {
       normalizedData[key] = rawData[key];
     }
   });
   
-  // Map corrupted field names
+  // Handle corrupted field names with dynamic mapping
   Object.keys(rawData).forEach(key => {
-    if (fieldMapping[key]) {
-      normalizedData[fieldMapping[key]] = rawData[key];
+    if (key.startsWith('_') && key.endsWith('_')) {
+      // Extract the core field name from corrupted format like '_field_name__value_'
+      const coreFieldName = key
+        .replace(/^_+/, '') // Remove leading underscores
+        .replace(/_+$/, '') // Remove trailing underscores
+        .replace(/__.*$/, '') // Remove everything after double underscore (specification/default value)
+        .toLowerCase();
+      
+      // Check if this core field name matches any template placeholder
+      const matchingPlaceholder = Array.from(templatePlaceholders).find((placeholder: string) => 
+        placeholder.toLowerCase().includes(coreFieldName) || 
+        coreFieldName.includes(placeholder.toLowerCase())
+      );
+      
+      if (matchingPlaceholder) {
+        normalizedData[matchingPlaceholder] = rawData[key];
+      } else if (templatePlaceholders.size === 0) {
+        // If no template placeholders available, use the cleaned core field name
+        normalizedData[coreFieldName] = rawData[key];
+      }
+    }
+  });
+  
+  // Handle camelCase to snake_case conversion for remaining fields
+  Object.keys(rawData).forEach(key => {
+    if (!normalizedData[key] && !key.startsWith('_')) {
+      const snakeCaseKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      if (templatePlaceholders.has(snakeCaseKey)) {
+        normalizedData[snakeCaseKey] = rawData[key];
+      }
     }
   });
   
@@ -55,7 +72,7 @@ const normalizeExtractedData = (rawData: Record<string, any>, job: ProcessingJob
 export default function DataExtraction({ job, template }: DataExtractionProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const rawExtractedData = job.extractedData as Record<string, any> || {};
-  const normalizedData = normalizeExtractedData(rawExtractedData, job);
+  const normalizedData = normalizeExtractedData(rawExtractedData, template);
   const [editedData, setEditedData] = useState<Record<string, any>>(normalizedData);
   const { toast } = useToast();
 

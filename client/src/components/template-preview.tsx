@@ -23,197 +23,58 @@ export default function TemplatePreview({
   const [showFullPreview, setShowFullPreview] = useState(false);
 
   const renderTemplateContent = () => {
-    // Generate template content based on the template type
-    const getTemplateStructure = () => {
-      if (template.type === 'CoA') {
-        return (
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="text-center border-b border-gray-200 pb-4">
-              <h1 className="text-xl font-bold text-gray-900 uppercase">
-                CERTIFICATE OF ANALYSIS
-              </h1>
-            </div>
-
-            {/* Product Information */}
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">Product Name:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-product_name">
-                  {extractedData.product_name || '{product_name}'}
-                </span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">INCI Name:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-inci_name">
-                  {extractedData.inci_name || '{inci_name}'}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">Batch Number:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-batch_number">
-                  {extractedData.batch_number || '{batch_number}'}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">Manufacturing Date:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-manufacturing_date">
-                  {extractedData.manufacturing_date || '{manufacturing_date}'}
-                </span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">Expiry Date:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-expiry_date">
-                  {extractedData.expiry_date || '{expiry_date}'}
-                </span>
-              </div>
-            </div>
-
-            {/* Test Results Table */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700 border-r border-gray-200">Test Items</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700 border-r border-gray-200">Specifications</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-700">Results</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Appearance</td>
-                    <td className="px-4 py-2 border-r border-gray-200">White solid powder</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.appearance || '{appearance}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Molecular weight</td>
-                    <td className="px-4 py-2 border-r border-gray-200">(0.5 – 1.8) x 10⁶</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.molecular_weight || '{molecular_weight}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Sodium hyaluronate content</td>
-                    <td className="px-4 py-2 border-r border-gray-200">≥ 95%</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.sodium_hyaluronate_content || '{sodium_hyaluronate_content}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Protein</td>
-                    <td className="px-4 py-2 border-r border-gray-200">≤ 0.1%</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.protein || '{protein}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Loss on drying</td>
-                    <td className="px-4 py-2 border-r border-gray-200">≤ 10%</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.loss_on_drying || '{loss_on_drying}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">pH</td>
-                    <td className="px-4 py-2 border-r border-gray-200">5.0-8.5</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.ph || '{ph}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Staphylococcus Aureus</td>
-                    <td className="px-4 py-2 border-r border-gray-200">Negative</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.staphylococcus_aureus || '{staphylococcus_aureus}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Pseudomonas Aeruginosa</td>
-                    <td className="px-4 py-2 border-r border-gray-200">Negative</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.pseudomonas_aeruginosa || '{pseudomonas_aeruginosa}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Heavy metal</td>
-                    <td className="px-4 py-2 border-r border-gray-200">≤20 ppm</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.heavy_metal || '{heavy_metal}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Total Bacteria</td>
-                    <td className="px-4 py-2 border-r border-gray-200">&lt; 100 CFU/g</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.total_bacteria || '{total_bacteria}'}
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-200">
-                    <td className="px-4 py-2 border-r border-gray-200">Yeast and molds</td>
-                    <td className="px-4 py-2 border-r border-gray-200">&lt; 50 CFU/g</td>
-                    <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.yeast_and_molds || '{yeast_and_molds}'}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Footer */}
-            <div className="space-y-2 border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">ISSUED DATE:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-issued_date">
-                  {extractedData.issued_date || '{issued_date}'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700">TEST RESULT:</span>
-                <span className="text-primary-600 font-medium" data-testid="preview-test_result">
-                  {extractedData.test_result || '{test_result}'}
-                </span>
-              </div>
-            </div>
-
-            {/* Company Footer */}
-            <div className="text-center border-t border-gray-200 pt-4">
-              <p className="font-medium text-gray-900">Nano Tech Chemical Brothers Pvt. Ltd.</p>
-            </div>
-          </div>
-        );
+    // Generate dynamic document title based on template type
+    const getDocumentTitle = () => {
+      switch (template.type) {
+        case 'TDS':
+          return 'TECHNICAL DATA SHEET';
+        case 'MDMS':
+          return 'MATERIAL DATA MANAGEMENT SHEET';
+        case 'CoA':
+        default:
+          return 'CERTIFICATE OF ANALYSIS';
       }
+    };
 
-      // Default fallback for other template types
-      return (
-        <div className="space-y-4">
-          <div className="text-center border-b border-gray-200 pb-4">
-            <h1 className="text-xl font-bold text-gray-900 uppercase">
-              {template.type} DOCUMENT
-            </h1>
-          </div>
-          <div className="space-y-3">
-            {template.placeholders.slice(0, 8).map((placeholder: string) => (
+    // Generate completely dynamic template structure
+    return (
+      <div className="space-y-6">
+        {/* Dynamic Header */}
+        <div className="text-center border-b border-gray-200 pb-4">
+          <h1 className="text-xl font-bold text-gray-900 uppercase">
+            {getDocumentTitle()}
+          </h1>
+        </div>
+
+        {/* Dynamic Field Rendering */}
+        <div className="space-y-3">
+          {template.placeholders.map((placeholder: string) => {
+            // Skip placeholders that don't have values and aren't in extracted data
+            if (!extractedData[placeholder] && extractedData[placeholder] !== '') {
+              return null;
+            }
+
+            const label = placeholder
+              .replace(/_/g, ' ')
+              .replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+            return (
               <div key={placeholder} className="flex justify-between items-center">
-                <span className="font-medium text-gray-700 capitalize">
-                  {placeholder.replace(/_/g, ' ')}:
-                </span>
-                <span className="text-primary-600 font-medium">
+                <span className="font-medium text-gray-700">{label}:</span>
+                <span className="text-primary-600 font-medium" data-testid={`preview-${placeholder}`}>
                   {extractedData[placeholder] || `{${placeholder}}`}
                 </span>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      );
-    };
 
-    return getTemplateStructure();
+        {/* Dynamic Company Footer */}
+        <div className="text-center border-t border-gray-200 pt-4">
+          <p className="font-medium text-gray-900">Document Generated by ChemDoc AI</p>
+        </div>
+      </div>
+    );
   };
 
   if (showFullPreview) {
