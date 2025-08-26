@@ -12,10 +12,13 @@ export default function History() {
   const { toast } = useToast();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const { data: savedDocuments = [], isLoading } = useQuery({
+  const { data: savedDocuments, isLoading, error } = useQuery({
     queryKey: ['/api/saved-documents'],
     queryFn: () => apiRequest('GET', '/api/saved-documents') as Promise<SavedDocument[]>
   });
+
+  // Ensure savedDocuments is always an array
+  const documentsArray = Array.isArray(savedDocuments) ? savedDocuments : [];
 
   const downloadMutation = useMutation({
     mutationFn: async ({ id, format }: { id: string, format: 'pdf' | 'docx' }) => {
@@ -112,7 +115,7 @@ export default function History() {
             <div className="animate-spin w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto"></div>
             <p className="text-gray-500 mt-4">Loading saved documents...</p>
           </div>
-        ) : savedDocuments.length === 0 ? (
+        ) : documentsArray.length === 0 ? (
           <Card className="p-12 text-center">
             <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No saved documents</h3>
@@ -125,7 +128,7 @@ export default function History() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {savedDocuments.map((document) => (
+            {documentsArray.map((document) => (
               <Card key={document.id} className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
