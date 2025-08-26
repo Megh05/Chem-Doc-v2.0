@@ -15,6 +15,60 @@ import { loadConfig, saveConfig, resetConfig } from "./config";
 import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema, insertSavedDocumentSchema } from "@shared/schema";
 import { processDocumentWithMistral, extractPlaceholdersFromTemplate, mapExtractedDataToTemplate } from "./lib/mistral";
 
+// Field name normalization function
+function normalizeFieldName(corruptedName: string): string {
+  // Map corrupted field names to clean template field names
+  const cleanName = corruptedName
+    .toLowerCase()
+    .replace(/^_+|_+$/g, '')  // Remove leading/trailing underscores
+    .replace(/_+/g, '_')      // Replace multiple underscores with single
+    .replace(/[^a-z0-9_]/g, '') // Remove non-alphanumeric except underscores
+    .trim();
+  
+  // Field name mapping table
+  const fieldMappings: Record<string, string> = {
+    'appearance_white_solid_powder': 'appearance',
+    'sodium_hyaluronate_content_95': 'sodium_hyaluronate_content', 
+    'protein_01': 'protein',
+    'loss_on_drying_10': 'loss_on_drying',
+    'ph_5085': 'ph',
+    'staphylococcus_aureus_negative': 'staphylococcus_aureus',
+    'pseudomonas_aeruginosa_negative': 'pseudomonas_aeruginosa',
+    'heavy_metal_20_ppm': 'heavy_metal',
+    'total_bacteria_100_cfug': 'total_bacteria',
+    'yeast_and_molds_50_cfug': 'yeast_and_molds'
+  };
+  
+  return fieldMappings[cleanName] || cleanName;
+}
+
+// Normalize extracted data to clean field names
+function normalizeExtractedData(rawData: Record<string, any>): Record<string, any> {
+  const normalized: Record<string, any> = {};
+  
+  for (const [key, value] of Object.entries(rawData)) {
+    const cleanKey = normalizeFieldName(key);
+    normalized[cleanKey] = value;
+  }
+  
+  return normalized;
+}
+
+// Simple fallback mapping function
+function getFallbackMappingSimple(fieldNames: string[]): string[] {
+  // Return fields in a logical order for CoA templates
+  const priorityOrder = [
+    'batch_number', 'manufacturing_date', 'expiry_date', 'appearance',
+    'molecular_weight', 'sodium_hyaluronate_content', 'protein', 'loss_on_drying',
+    'ph', 'staphylococcus_aureus', 'pseudomonas_aeruginosa', 'heavy_metal',
+    'total_bacteria', 'yeast_and_molds', 'issued_date', 'test_result'
+  ];
+  
+  // Filter to only include fields that exist in the data
+  return priorityOrder.filter(field => fieldNames.includes(field))
+    .concat(fieldNames.filter(field => !priorityOrder.includes(field)));
+}
+
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -399,28 +453,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const templatePath = path.join(uploadDir, targetFile);
-      const documentData = data || job.extractedData || {};
+      const rawDocumentData = data || job.extractedData || {};
+      
+      // Normalize extracted data to clean field names
+      const documentData = normalizeExtractedData(rawDocumentData);
+      console.log('🧹 Normalized document data:', documentData);
       
       // Get template structure for intelligent mapping
       const structure = await parseTemplateStructure(templatePath);
       let intelligentMapping: string[] | null = null;
       
-      // Try to get intelligent mapping for better placeholder replacement
-      const config = loadConfig();
-      const MISTRAL_API_KEY = config.apiSettings.mistralApiKey || process.env.MISTRAL_API_KEY;
-      
-      if (MISTRAL_API_KEY && Object.keys(documentData).length > 0) {
-        try {
-          intelligentMapping = await mapExtractedDataToTemplate(
-            documentData,
-            structure.html,
-            MISTRAL_API_KEY
-          );
-          console.log('🎯 Using intelligent mapping:', intelligentMapping);
-        } catch (error) {
-          console.error('Failed to get intelligent mapping:', error);
-        }
-      }
+      // Use fallback mapping for now (AI mapping has parsing issues)
+      intelligentMapping = getFallbackMappingSimple(Object.keys(documentData));
+      console.log('🎯 Using fallback mapping:', intelligentMapping);
       
 
       if (format === 'pdf') {

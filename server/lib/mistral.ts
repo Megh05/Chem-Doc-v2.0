@@ -713,39 +713,53 @@ If a position cannot be mapped to any field, use null for that position.
     
     // Extract JSON array from the response (handle markdown code blocks)
     let cleanContent = content.trim();
+    console.log('🔍 Raw content to parse:', cleanContent.substring(0, 500) + '...');
     
     // Remove markdown code blocks if present
     if (cleanContent.includes('```json')) {
       const jsonBlockMatch = cleanContent.match(/```json\s*([\s\S]*?)\s*```/);
       if (jsonBlockMatch) {
         cleanContent = jsonBlockMatch[1].trim();
+        console.log('📦 Extracted from json block:', cleanContent);
       }
     } else if (cleanContent.includes('```')) {
       const codeBlockMatch = cleanContent.match(/```\s*([\s\S]*?)\s*```/);
       if (codeBlockMatch) {
         cleanContent = codeBlockMatch[1].trim();
+        console.log('📦 Extracted from code block:', cleanContent);
       }
     }
     
-    // Look for JSON array pattern
-    const arrayMatch = cleanContent.match(/\[[\s\S]*?\]/);
+    // More flexible JSON array pattern matching
+    let arrayMatch = cleanContent.match(/\[\s*"[\s\S]*?\]/);
     if (!arrayMatch) {
+      // Try alternative patterns
+      arrayMatch = cleanContent.match(/\[[\s\S]*?\]/);
+    }
+    if (!arrayMatch) {
+      console.error('❌ Failed to find JSON array in content:', cleanContent);
       throw new Error('No valid JSON array found in Mistral response');
     }
     
     let jsonArrayString = arrayMatch[0];
+    console.log('🎯 Found JSON array string:', jsonArrayString);
     
-    // Clean up the JSON string
-    jsonArrayString = jsonArrayString
-      .replace(/\n/g, ' ')           // Remove newlines
-      .replace(/\s+/g, ' ')          // Normalize spaces
-      .replace(/,\s*]/g, ']')        // Remove trailing commas
-      .trim();
-    
-    const mappingOrder = JSON.parse(jsonArrayString);
-    console.log('🎯 Intelligent field mapping order:', mappingOrder);
-    
-    return mappingOrder;
+    try {
+      // Clean up the JSON string
+      jsonArrayString = jsonArrayString
+        .replace(/\n/g, ' ')           // Remove newlines
+        .replace(/\s+/g, ' ')          // Normalize spaces
+        .replace(/,\s*]/g, ']')        // Remove trailing commas
+        .trim();
+      
+      const mappingOrder = JSON.parse(jsonArrayString);
+      console.log('✅ Successfully parsed intelligent field mapping:', mappingOrder);
+      return mappingOrder;
+    } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError);
+      console.error('❌ Attempted to parse:', jsonArrayString);
+      throw new Error(`Failed to parse JSON array: ${parseError}`);
+    }
     
   } catch (error: any) {
     console.error('Mistral mapping failed:', error);
