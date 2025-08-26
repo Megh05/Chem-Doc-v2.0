@@ -1,76 +1,81 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+// Type definitions for our entities
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  type: string; // 'CoA', 'TDS', 'MDMS'
+  fileName: string;
+  fileSize: number;
+  placeholders: string[]; // array of placeholder names
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Document {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  filePath: string;
+  createdAt: Date;
+}
+
+export interface ProcessingJob {
+  id: string;
+  documentId: string;
+  templateId: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  ocrText?: string | null;
+  extractedData?: Record<string, any> | null; // key-value pairs
+  accuracy?: number | null; // percentage
+  tokensExtracted?: number | null;
+  processingTime?: number | null; // seconds
+  errorMessage?: string | null;
+  createdAt: Date;
+  completedAt?: Date | null;
+}
+
+// Zod schemas for validation
+export const insertUserSchema = z.object({
+  username: z.string(),
+  password: z.string(),
 });
 
-export const templates = pgTable("templates", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  type: text("type").notNull(), // 'CoA', 'TDS', 'MDMS'
-  fileName: text("file_name").notNull(),
-  fileSize: integer("file_size").notNull(),
-  placeholders: jsonb("placeholders").notNull(), // array of placeholder names
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertTemplateSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  fileName: z.string(),
+  fileSize: z.number(),
+  placeholders: z.array(z.string()),
 });
 
-export const documents = pgTable("documents", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  fileName: text("file_name").notNull(),
-  fileType: text("file_type").notNull(),
-  fileSize: integer("file_size").notNull(),
-  filePath: text("file_path").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertDocumentSchema = z.object({
+  fileName: z.string(),
+  fileType: z.string(),
+  fileSize: z.number(),
+  filePath: z.string(),
 });
 
-export const processingJobs = pgTable("processing_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  documentId: varchar("document_id").notNull().references(() => documents.id),
-  templateId: varchar("template_id").notNull().references(() => templates.id),
-  status: text("status").notNull().default('pending'), // 'pending', 'processing', 'completed', 'failed'
-  ocrText: text("ocr_text"),
-  extractedData: jsonb("extracted_data"), // key-value pairs
-  accuracy: integer("accuracy"), // percentage
-  tokensExtracted: integer("tokens_extracted"),
-  processingTime: integer("processing_time"), // seconds
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  completedAt: timestamp("completed_at"),
-});
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
-
-export const insertTemplateSchema = createInsertSchema(templates).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertDocumentSchema = createInsertSchema(documents).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertProcessingJobSchema = createInsertSchema(processingJobs).omit({
-  id: true,
-  createdAt: true,
-  completedAt: true,
+export const insertProcessingJobSchema = z.object({
+  documentId: z.string(),
+  templateId: z.string(),
+  status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),
+  ocrText: z.string().nullable().optional(),
+  extractedData: z.record(z.any()).nullable().optional(),
+  accuracy: z.number().nullable().optional(),
+  tokensExtracted: z.number().nullable().optional(),
+  processingTime: z.number().nullable().optional(),
+  errorMessage: z.string().nullable().optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
 export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
-export type Template = typeof templates.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
-export type Document = typeof documents.$inferSelect;
 export type InsertProcessingJob = z.infer<typeof insertProcessingJobSchema>;
-export type ProcessingJob = typeof processingJobs.$inferSelect;

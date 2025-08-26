@@ -1,5 +1,14 @@
 import { type User, type InsertUser, type Template, type InsertTemplate, type Document, type InsertDocument, type ProcessingJob, type InsertProcessingJob } from "@shared/schema";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 export interface IStorage {
   // User methods
@@ -28,158 +37,242 @@ export interface IStorage {
   deleteProcessingJob(id: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private templates: Map<string, Template>;
-  private documents: Map<string, Document>;
-  private processingJobs: Map<string, ProcessingJob>;
+class FileStorage implements IStorage {
+  private usersFile = path.join(DATA_DIR, 'users.json');
+  private templatesFile = path.join(DATA_DIR, 'templates.json');
+  private documentsFile = path.join(DATA_DIR, 'documents.json');
+  private processingJobsFile = path.join(DATA_DIR, 'processing-jobs.json');
 
   constructor() {
-    this.users = new Map();
-    this.templates = new Map();
-    this.documents = new Map();
-    this.processingJobs = new Map();
-    
-    // Initialize with sample templates
-    this.initializeSampleData();
+    this.initializeFiles();
   }
 
-  private initializeSampleData() {
-    const sampleTemplates: Template[] = [
-      {
-        id: randomUUID(),
-        name: "Standard CoA Template v2.1",
-        type: "CoA",
-        fileName: "standard_coa_template_v2.1.docx",
-        fileSize: 45000,
-        placeholders: [
-          "product_name", "batch_number", "manufacturing_date", "expiration_date",
-          "purity", "test_results", "supplier_name", "lot_number", "cas_number",
-          "molecular_formula", "molecular_weight", "appearance", "ph_value",
-          "moisture_content", "heavy_metals", "residual_solvents", "microbiological_tests",
-          "storage_conditions", "shelf_life", "quality_manager", "release_date"
-        ],
-        createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      },
-      {
-        id: randomUUID(),
-        name: "TDS Template v1.8",
-        type: "TDS",
-        fileName: "tds_template_v1.8.docx",
-        fileSize: 38000,
-        placeholders: [
-          "product_name", "chemical_name", "cas_number", "molecular_formula",
-          "molecular_weight", "appearance", "melting_point", "boiling_point",
-          "density", "solubility", "flash_point", "vapor_pressure", "stability",
-          "hazard_classification", "safety_precautions", "storage_requirements",
-          "handling_instructions", "first_aid_measures"
-        ],
-        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      },
-      {
-        id: randomUUID(),
-        name: "MDMS Template v1.5",
-        type: "MDMS",
-        fileName: "mdms_template_v1.5.docx",
-        fileSize: 42000,
-        placeholders: [
-          "product_name", "supplier_name", "material_code", "revision_number",
-          "issue_date", "chemical_composition", "physical_properties",
-          "mechanical_properties", "thermal_properties", "electrical_properties",
-          "environmental_data", "processing_guidelines", "quality_standards",
-          "regulatory_compliance", "certifications"
-        ],
-        createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+  private initializeFiles() {
+    // Initialize users file
+    if (!fs.existsSync(this.usersFile)) {
+      this.writeJsonFile(this.usersFile, []);
+    }
+
+    // Initialize templates file with sample data
+    if (!fs.existsSync(this.templatesFile)) {
+      const sampleTemplates: Template[] = [
+        {
+          id: randomUUID(),
+          name: "Standard CoA Template v2.1",
+          type: "CoA",
+          fileName: "standard_coa_template_v2.1.docx",
+          fileSize: 45000,
+          placeholders: [
+            "product_name", "batch_number", "manufacturing_date", "expiration_date",
+            "purity", "test_results", "supplier_name", "lot_number", "cas_number",
+            "molecular_formula", "molecular_weight", "appearance", "ph_value",
+            "moisture_content", "heavy_metals", "residual_solvents", "microbiological_tests",
+            "storage_conditions", "shelf_life", "quality_manager", "release_date"
+          ],
+          createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: randomUUID(),
+          name: "TDS Template v1.8",
+          type: "TDS",
+          fileName: "tds_template_v1.8.docx",
+          fileSize: 38000,
+          placeholders: [
+            "product_name", "chemical_name", "cas_number", "molecular_formula",
+            "molecular_weight", "appearance", "melting_point", "boiling_point",
+            "density", "solubility", "flash_point", "vapor_pressure", "stability",
+            "hazard_classification", "safety_precautions", "storage_requirements",
+            "handling_instructions", "first_aid_measures"
+          ],
+          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        },
+        {
+          id: randomUUID(),
+          name: "MDMS Template v1.5",
+          type: "MDMS",
+          fileName: "mdms_template_v1.5.docx",
+          fileSize: 42000,
+          placeholders: [
+            "product_name", "supplier_name", "material_code", "revision_number",
+            "issue_date", "chemical_composition", "physical_properties",
+            "mechanical_properties", "thermal_properties", "electrical_properties",
+            "environmental_data", "processing_guidelines", "quality_standards",
+            "regulatory_compliance", "certifications"
+          ],
+          createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+        }
+      ];
+      this.writeJsonFile(this.templatesFile, sampleTemplates);
+    }
+
+    // Initialize documents file
+    if (!fs.existsSync(this.documentsFile)) {
+      this.writeJsonFile(this.documentsFile, []);
+    }
+
+    // Initialize processing jobs file
+    if (!fs.existsSync(this.processingJobsFile)) {
+      this.writeJsonFile(this.processingJobsFile, []);
+    }
+  }
+
+  private readJsonFile<T>(filePath: string): T[] {
+    try {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(data);
+      // Convert date strings back to Date objects
+      return this.reviveDates(parsed);
+    } catch (error) {
+      console.error(`Error reading file ${filePath}:`, error);
+      return [];
+    }
+  }
+
+  private writeJsonFile<T>(filePath: string, data: T[]): void {
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (error) {
+      console.error(`Error writing file ${filePath}:`, error);
+      throw error;
+    }
+  }
+
+  private reviveDates(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.reviveDates(item));
+    } else if (obj && typeof obj === 'object') {
+      const result: any = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (key.includes('At') || key.includes('Date')) {
+          result[key] = value ? new Date(value as string) : value;
+        } else {
+          result[key] = this.reviveDates(value);
+        }
       }
-    ];
-
-    sampleTemplates.forEach(template => {
-      this.templates.set(template.id, template);
-    });
+      return result;
+    }
+    return obj;
   }
 
+  // User methods
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const users = this.readJsonFile<User>(this.usersFile);
+    return users.find(user => user.id === id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const users = this.readJsonFile<User>(this.usersFile);
+    return users.find(user => user.username === username);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const users = this.readJsonFile<User>(this.usersFile);
+    const user: User = { ...insertUser, id: randomUUID() };
+    users.push(user);
+    this.writeJsonFile(this.usersFile, users);
     return user;
   }
 
+  // Template methods
   async getTemplate(id: string): Promise<Template | undefined> {
-    return this.templates.get(id);
+    const templates = this.readJsonFile<Template>(this.templatesFile);
+    return templates.find(template => template.id === id);
   }
 
   async getTemplates(): Promise<Template[]> {
-    return Array.from(this.templates.values());
+    return this.readJsonFile<Template>(this.templatesFile);
   }
 
   async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
-    const id = randomUUID();
+    const templates = this.readJsonFile<Template>(this.templatesFile);
     const now = new Date();
-    const template: Template = { ...insertTemplate, id, createdAt: now, updatedAt: now };
-    this.templates.set(id, template);
+    const template: Template = { 
+      ...insertTemplate, 
+      id: randomUUID(), 
+      createdAt: now, 
+      updatedAt: now 
+    };
+    templates.push(template);
+    this.writeJsonFile(this.templatesFile, templates);
     return template;
   }
 
   async updateTemplate(id: string, updateData: Partial<InsertTemplate>): Promise<Template | undefined> {
-    const existing = this.templates.get(id);
-    if (!existing) return undefined;
-    
-    const updated: Template = { ...existing, ...updateData, updatedAt: new Date() };
-    this.templates.set(id, updated);
+    const templates = this.readJsonFile<Template>(this.templatesFile);
+    const index = templates.findIndex(template => template.id === id);
+    if (index === -1) return undefined;
+
+    const updated: Template = { 
+      ...templates[index], 
+      ...updateData, 
+      updatedAt: new Date() 
+    };
+    templates[index] = updated;
+    this.writeJsonFile(this.templatesFile, templates);
     return updated;
   }
 
   async deleteTemplate(id: string): Promise<boolean> {
-    return this.templates.delete(id);
+    const templates = this.readJsonFile<Template>(this.templatesFile);
+    const index = templates.findIndex(template => template.id === id);
+    if (index === -1) return false;
+
+    templates.splice(index, 1);
+    this.writeJsonFile(this.templatesFile, templates);
+    return true;
   }
 
+  // Document methods
   async getDocument(id: string): Promise<Document | undefined> {
-    return this.documents.get(id);
+    const documents = this.readJsonFile<Document>(this.documentsFile);
+    return documents.find(document => document.id === id);
   }
 
   async getDocuments(): Promise<Document[]> {
-    return Array.from(this.documents.values());
+    return this.readJsonFile<Document>(this.documentsFile);
   }
 
   async createDocument(insertDocument: InsertDocument): Promise<Document> {
-    const id = randomUUID();
-    const document: Document = { ...insertDocument, id, createdAt: new Date() };
-    this.documents.set(id, document);
+    const documents = this.readJsonFile<Document>(this.documentsFile);
+    const document: Document = { 
+      ...insertDocument, 
+      id: randomUUID(), 
+      createdAt: new Date() 
+    };
+    documents.push(document);
+    this.writeJsonFile(this.documentsFile, documents);
     return document;
   }
 
   async deleteDocument(id: string): Promise<boolean> {
-    return this.documents.delete(id);
+    const documents = this.readJsonFile<Document>(this.documentsFile);
+    const index = documents.findIndex(document => document.id === id);
+    if (index === -1) return false;
+
+    documents.splice(index, 1);
+    this.writeJsonFile(this.documentsFile, documents);
+    return true;
   }
 
+  // Processing job methods
   async getProcessingJob(id: string): Promise<ProcessingJob | undefined> {
-    return this.processingJobs.get(id);
+    const jobs = this.readJsonFile<ProcessingJob>(this.processingJobsFile);
+    return jobs.find(job => job.id === id);
   }
 
   async getProcessingJobs(): Promise<ProcessingJob[]> {
-    return Array.from(this.processingJobs.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const jobs = this.readJsonFile<ProcessingJob>(this.processingJobsFile);
+    return jobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   async createProcessingJob(insertJob: InsertProcessingJob): Promise<ProcessingJob> {
-    const id = randomUUID();
+    const jobs = this.readJsonFile<ProcessingJob>(this.processingJobsFile);
     const job: ProcessingJob = { 
       ...insertJob, 
-      id, 
+      id: randomUUID(),
       status: insertJob.status || 'pending',
       ocrText: insertJob.ocrText || null,
       extractedData: insertJob.extractedData || null,
@@ -190,28 +283,37 @@ export class MemStorage implements IStorage {
       createdAt: new Date(), 
       completedAt: null 
     };
-    this.processingJobs.set(id, job);
+    jobs.push(job);
+    this.writeJsonFile(this.processingJobsFile, jobs);
     return job;
   }
 
   async updateProcessingJob(id: string, updateData: Partial<InsertProcessingJob>): Promise<ProcessingJob | undefined> {
-    const existing = this.processingJobs.get(id);
-    if (!existing) return undefined;
-    
+    const jobs = this.readJsonFile<ProcessingJob>(this.processingJobsFile);
+    const index = jobs.findIndex(job => job.id === id);
+    if (index === -1) return undefined;
+
     const updated: ProcessingJob = { 
-      ...existing, 
+      ...jobs[index], 
       ...updateData,
       completedAt: updateData.status === 'completed' || updateData.status === 'failed' 
         ? new Date() 
-        : existing.completedAt
+        : jobs[index].completedAt
     };
-    this.processingJobs.set(id, updated);
+    jobs[index] = updated;
+    this.writeJsonFile(this.processingJobsFile, jobs);
     return updated;
   }
 
   async deleteProcessingJob(id: string): Promise<boolean> {
-    return this.processingJobs.delete(id);
+    const jobs = this.readJsonFile<ProcessingJob>(this.processingJobsFile);
+    const index = jobs.findIndex(job => job.id === id);
+    if (index === -1) return false;
+
+    jobs.splice(index, 1);
+    this.writeJsonFile(this.processingJobsFile, jobs);
+    return true;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new FileStorage();
