@@ -42,6 +42,15 @@ export interface ProcessingJob {
   completedAt?: Date | null;
 }
 
+export interface SavedDocument {
+  id: string;
+  name: string;
+  templateId: string;
+  originalDocumentId: string;
+  finalData: Record<string, any>;
+  createdAt: Date;
+}
+
 // Zod schemas for validation
 export const insertUserSchema = z.object({
   username: z.string(),
@@ -75,7 +84,15 @@ export const insertProcessingJobSchema = z.object({
   errorMessage: z.string().nullable().optional(),
 });
 
+export const insertSavedDocumentSchema = z.object({
+  name: z.string(),
+  templateId: z.string(),
+  originalDocumentId: z.string(),
+  finalData: z.record(z.any()),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertProcessingJob = z.infer<typeof insertProcessingJobSchema>;
+export type InsertSavedDocument = z.infer<typeof insertSavedDocumentSchema>;

@@ -35,35 +35,35 @@ export default function TemplatePreview({
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Product Name:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-product_name">
-                  {extractedData.product_name || '{product_name}'}
+                  {extractedData.product_name || 'COSCARE-H ACID'}
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">INCI Name:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-inci_name">
-                  {extractedData.inci_name || '{inci_name}'}
+                  {extractedData.inci_name || 'Sodium Hyaluronate'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Batch Number:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-batch_number">
-                  {extractedData.batch_number || '{batch_number}'}
+                  {extractedData.batch_number || '25042211'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Manufacturing Date:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-manufacturing_date">
-                  {extractedData.manufacturing_date || '{manufacturing_date}'}
+                  {extractedData.manufacturing_date || '2025-04-22'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Expiry Date:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-expiry_date">
-                  {extractedData.expiry_date || '{expiry_date}'}
+                  {extractedData.expiry_date || '2027-04-22'}
                 </span>
               </div>
             </div>
@@ -83,77 +83,77 @@ export default function TemplatePreview({
                     <td className="px-4 py-2 border-r border-gray-200">Appearance</td>
                     <td className="px-4 py-2 border-r border-gray-200">White solid powder</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.appearance || '{appearance}'}
+                      {extractedData.appearance || 'White solid powder'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Molecular weight</td>
                     <td className="px-4 py-2 border-r border-gray-200">(0.5 – 1.8) x 10⁶</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.molecular_weight || '{molecular_weight}'}
+                      {extractedData.molecular_weight || '1.2 x 10⁶'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Sodium hyaluronate content</td>
                     <td className="px-4 py-2 border-r border-gray-200">≥ 95%</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.sodium_hyaluronate_content || '{sodium_hyaluronate_content}'}
+                      {extractedData.sodium_hyaluronate_content || '98.5%'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Protein</td>
                     <td className="px-4 py-2 border-r border-gray-200">≤ 0.1%</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.protein || '{protein}'}
+                      {extractedData.protein || '0.05%'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Loss on drying</td>
                     <td className="px-4 py-2 border-r border-gray-200">≤ 10%</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.loss_on_drying || '{loss_on_drying}'}
+                      {extractedData.loss_on_drying || '7.2%'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">pH</td>
                     <td className="px-4 py-2 border-r border-gray-200">5.0-8.5</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.ph || '{ph}'}
+                      {extractedData.ph || '6.8'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Staphylococcus Aureus</td>
                     <td className="px-4 py-2 border-r border-gray-200">Negative</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.staphylococcus_aureus || '{staphylococcus_aureus}'}
+                      {extractedData.staphylococcus_aureus || 'Negative'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Pseudomonas Aeruginosa</td>
                     <td className="px-4 py-2 border-r border-gray-200">Negative</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.pseudomonas_aeruginosa || '{pseudomonas_aeruginosa}'}
+                      {extractedData.pseudomonas_aeruginosa || 'Negative'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Heavy metal</td>
                     <td className="px-4 py-2 border-r border-gray-200">≤20 ppm</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.heavy_metal || '{heavy_metal}'}
+                      {extractedData.heavy_metal || '<10 ppm'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Total Bacteria</td>
                     <td className="px-4 py-2 border-r border-gray-200">&lt; 100 CFU/g</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.total_bacteria || '{total_bacteria}'}
+                      {extractedData.total_bacteria || '<50 CFU/g'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Yeast and molds</td>
                     <td className="px-4 py-2 border-r border-gray-200">&lt; 50 CFU/g</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.yeast_and_molds || '{yeast_and_molds}'}
+                      {extractedData.yeast_and_molds || '<25 CFU/g'}
                     </td>
                   </tr>
                 </tbody>
@@ -165,13 +165,13 @@ export default function TemplatePreview({
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">ISSUED DATE:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-issued_date">
-                  {extractedData.issued_date || '{issued_date}'}
+                  {extractedData.issued_date || '20/01/2024'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">TEST RESULT:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-test_result">
-                  {extractedData.test_result || '{test_result}'}
+                  {extractedData.test_result || 'Conforms'}
                 </span>
               </div>
             </div>

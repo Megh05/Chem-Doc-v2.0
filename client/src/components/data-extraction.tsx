@@ -56,8 +56,36 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
     }
   });
 
-  const handleGenerateDocument = (format: 'pdf' | 'docx' = 'pdf') => {
-    generateDocumentMutation.mutate({ format, jobId: job.id });
+  const saveDocumentMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/saved-documents', {
+        name: `${template?.name || 'Document'} - ${new Date().toLocaleDateString()}`,
+        templateId: job.templateId,
+        originalDocumentId: job.documentId,
+        finalData: editedData
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Document saved",
+        description: "Your document has been saved and is available in history",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save document",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleGenerateDocument = (action: 'pdf' | 'docx' | 'save' = 'save') => {
+    if (action === 'save') {
+      saveDocumentMutation.mutate();
+    } else {
+      generateDocumentMutation.mutate({ format: action, jobId: job.id });
+    }
   };
 
   const getFieldStatus = (field: string, value: any) => {

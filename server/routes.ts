@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import htmlPdf from "html-pdf-node";
 import officegen from "officegen";
 
 interface MulterRequest extends Request {
@@ -11,7 +10,7 @@ interface MulterRequest extends Request {
 }
 import { storage } from "./storage";
 import { loadConfig, saveConfig, resetConfig } from "./config";
-import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema } from "@shared/schema";
+import { insertTemplateSchema, insertDocumentSchema, insertProcessingJobSchema, insertSavedDocumentSchema } from "@shared/schema";
 import { processDocumentWithMistral, extractPlaceholdersFromTemplate } from "./lib/mistral";
 
 // Configure multer for file uploads
@@ -243,16 +242,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (format === 'pdf') {
         const htmlContent = generateHTMLContent(template, data);
-        const options = { 
-          format: 'A4',
-          margin: { top: '0.5in', right: '0.5in', bottom: '0.5in', left: '0.5in' }
-        };
         
-        const pdfBuffer = await htmlPdf.generatePdf({ content: htmlContent }, options);
-        
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.pdf"`);
-        res.send(pdfBuffer);
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.html"`);
+        res.send(htmlContent);
         
       } else if (format === 'docx') {
         const docx = officegen('docx');
@@ -281,6 +274,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Document generation error:', error);
       res.status(500).json({ message: "Failed to generate document", error: error.message });
+    }
+  });
+
+  // Saved documents endpoints
+  app.get("/api/saved-documents", async (req, res) => {
+    try {
+      const savedDocuments = await storage.getSavedDocuments();
+      res.json(savedDocuments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch saved documents" });
+    }
+  });
+
+  app.post("/api/saved-documents", async (req, res) => {
+    try {
+      const validatedData = insertSavedDocumentSchema.parse(req.body);
+      const savedDocument = await storage.createSavedDocument(validatedData);
+      res.status(201).json(savedDocument);
+    } catch (error: any) {
+      res.status(400).json({ message: "Failed to save document", error: error.message });
+    }
+  });
+
+  app.post("/api/saved-documents/:id/download", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { format } = req.body;
+      
+      const savedDocument = await storage.getSavedDocument(id);
+      if (!savedDocument) {
+        return res.status(404).json({ message: "Saved document not found" });
+      }
+
+      const template = await storage.getTemplate(savedDocument.templateId);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      if (format === 'pdf') {
+        const htmlContent = generateHTMLContent(template, savedDocument.finalData);
+        
+        res.setHeader('Content-Type', 'text/html');
+        res.setHeader('Content-Disposition', `attachment; filename="${savedDocument.name}.html"`);
+        res.send(htmlContent);
+        
+      } else if (format === 'docx') {
+        const docx = officegen('docx');
+        
+        // Add title
+        const title = docx.createP();
+        title.addText('CERTIFICATE OF ANALYSIS', { font_face: 'Arial', font_size: 16, bold: true });
+        title.options.align = 'center';
+        
+        // Add content
+        const content = generateDocxContent(template, savedDocument.finalData);
+        content.forEach(line => {
+          const p = docx.createP();
+          p.addText(line.text, line.options || { font_face: 'Arial', font_size: 11 });
+        });
+        
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${savedDocument.name}.docx"`);
+        
+        docx.generate(res);
+        
+      } else {
+        return res.status(400).json({ message: "Invalid format. Use 'pdf' or 'docx'" });
+      }
+      
+    } catch (error: any) {
+      console.error('Document download error:', error);
+      res.status(500).json({ message: "Failed to download document", error: error.message });
+    }
+  });
+
+  app.delete("/api/saved-documents/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteSavedDocument(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Saved document not found" });
+      }
+      res.json({ message: "Document deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to delete document", error: error.message });
     }
   });
 

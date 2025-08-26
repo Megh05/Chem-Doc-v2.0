@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Template, type InsertTemplate, type Document, type InsertDocument, type ProcessingJob, type InsertProcessingJob } from "@shared/schema";
+import { type User, type InsertUser, type Template, type InsertTemplate, type Document, type InsertDocument, type ProcessingJob, type InsertProcessingJob, type SavedDocument, type InsertSavedDocument } from "@shared/schema";
 import { randomUUID } from "crypto";
 import fs from "fs";
 import path from "path";
@@ -35,6 +35,12 @@ export interface IStorage {
   createProcessingJob(job: InsertProcessingJob): Promise<ProcessingJob>;
   updateProcessingJob(id: string, job: Partial<InsertProcessingJob>): Promise<ProcessingJob | undefined>;
   deleteProcessingJob(id: string): Promise<boolean>;
+  
+  // Saved document methods
+  getSavedDocument(id: string): Promise<SavedDocument | undefined>;
+  getSavedDocuments(): Promise<SavedDocument[]>;
+  createSavedDocument(document: InsertSavedDocument): Promise<SavedDocument>;
+  deleteSavedDocument(id: string): Promise<boolean>;
 }
 
 class FileStorage implements IStorage {
@@ -42,6 +48,7 @@ class FileStorage implements IStorage {
   private templatesFile = path.join(DATA_DIR, 'templates.json');
   private documentsFile = path.join(DATA_DIR, 'documents.json');
   private processingJobsFile = path.join(DATA_DIR, 'processing-jobs.json');
+  private savedDocumentsFile = path.join(DATA_DIR, 'saved-documents.json');
 
   constructor() {
     this.initializeFiles();
@@ -116,6 +123,11 @@ class FileStorage implements IStorage {
     // Initialize processing jobs file
     if (!fs.existsSync(this.processingJobsFile)) {
       this.writeJsonFile(this.processingJobsFile, []);
+    }
+
+    // Initialize saved documents file
+    if (!fs.existsSync(this.savedDocumentsFile)) {
+      this.writeJsonFile(this.savedDocumentsFile, []);
     }
   }
 
@@ -312,6 +324,39 @@ class FileStorage implements IStorage {
 
     jobs.splice(index, 1);
     this.writeJsonFile(this.processingJobsFile, jobs);
+    return true;
+  }
+
+  // Saved document methods
+  async getSavedDocument(id: string): Promise<SavedDocument | undefined> {
+    const savedDocuments = this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    return savedDocuments.find(doc => doc.id === id);
+  }
+
+  async getSavedDocuments(): Promise<SavedDocument[]> {
+    return this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+  }
+
+  async createSavedDocument(document: InsertSavedDocument): Promise<SavedDocument> {
+    const savedDocuments = this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    const newSavedDocument: SavedDocument = {
+      id: randomUUID(),
+      ...document,
+      createdAt: new Date(),
+    };
+    savedDocuments.push(newSavedDocument);
+    this.writeJsonFile(this.savedDocumentsFile, savedDocuments);
+    return newSavedDocument;
+  }
+
+  async deleteSavedDocument(id: string): Promise<boolean> {
+    const savedDocuments = this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    const index = savedDocuments.findIndex(doc => doc.id === id);
+    if (index === -1) {
+      return false;
+    }
+    savedDocuments.splice(index, 1);
+    this.writeJsonFile(this.savedDocumentsFile, savedDocuments);
     return true;
   }
 }

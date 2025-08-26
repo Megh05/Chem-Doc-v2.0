@@ -30,5 +30,37 @@
     "errorMessage": null,
     "createdAt": "2025-08-26T14:08:31.413Z",
     "completedAt": "2025-08-26T14:08:40.554Z"
+  },
+  {
+    "documentId": "5e74b852-a3e6-4455-8e8e-467f698ce155",
+    "templateId": "272ebecd-7ad4-44dd-962c-e38de88294df",
+    "status": "completed",
+    "id": "f57b7541-7907-4782-91bc-1cf5de172ae0",
+    "ocrText": "# 山东焦点福瑞达生物股份有限公司\nShandong Focusfreda Biotech Co., Ltd.\n\nCERTIFICATE OF ANALYSIS\n\nNO.: C-250425510\n\nProduct name: Sodium hyaluronate\nGrade: Cosmetic grade\n\nAbbreviation: SH-TE\nProduction date: April 22,2025\n\nBatch No.: 25042211\nRetest Date: April 22,2027\n\nQuantity: 288.2kg\nStandard: Reference to ZL-01-026\n\nItem\nStandard\nResult\n\n1.Appearance\nWhite or almost white powder or granule\nComplies\n\n2.Sodium hyaluronate\n≥95.0%\n97.4%\n\n3.Appearance of solution\nA400mm≤0.01\n0.000\n\n4.Nucleic Acids\nA260mm≤0.5\n0.14\n\n5.pH(0.5% ap.sol.,25°C)\n5.0~8.5\n6.8\n\n6.Molecular weight\n1.50M~1.80M Da\n1.70M Da\n\n7.Protein\n≤0.1%\n0.04%\n\n8.Loss on drying\n≤10.0%\n6.8%\n\n9.Residue on Ignition\n≤20.0%\n<20.0%\n\n10.Chlorides\n≤0.5%\nComplies\n\n11.Iron\n≤80ppm\n<80ppm\n\n12.Heavy metal\n≤20ppm\nComplies\n\n13.Arsenic\n≤2ppm\n<2ppm\n\n14.Bacteria counts\n≤10cfu/g\n<10cfu/g\n\n15.Molds & Yeasts\n≤50cfu/g\n<10cfu/g\n\n16.Staphylococcus aureus, Leucovorax, Neogative/g\nNegative/g\nNegative\n\n17.Pseudomonas aeruginosa Negative/g\nNegative/g\n\nConclusion: up to the standard, reference to EIS\nReported by: 王晶晶, 郭晶晶, 郭晶晶, 郭晶晶\n\nApproved by: 孔泉, 杨, 刘玲, 邱玲, 邱玲\n\n电话: 400-090-5566 邮箱: sales@focusfreda.com 地址: 山东省济宁市曲阜市高铁新区经济开发区\nAdd: New Economic Development Zone of High Speed Rail, Qufu, Jining, Shandong, China.",
+    "extractedData": {
+      "product_name": "Sodium hyaluronate",
+      "inci_name": null,
+      "batch_number": "25042211",
+      "manufacturing_date": "2025-04-22",
+      "expiry_date": "2027-04-22",
+      "_appearance__white_solid_powder_": true,
+      "_sodium_hyaluronate_content___95_": 97.4,
+      "_protein___01_": 0.04,
+      "_loss_on_drying___10_": 6.8,
+      "_ph__5085_": 6.8,
+      "_staphylococcus_aureus__negative_": true,
+      "_pseudomonas_aeruginosa__negative_": true,
+      "_heavy_metal__20_ppm_": true,
+      "_total_bacteria___100_cfug_": "<10",
+      "_yeast_and_molds___50_cfug_": "<10",
+      "issued_date": null,
+      "test_result": "up to the standard, reference to EIS"
+    },
+    "accuracy": 96,
+    "tokensExtracted": 158,
+    "processingTime": 9,
+    "errorMessage": null,
+    "createdAt": "2025-08-26T14:21:43.019Z",
+    "completedAt": "2025-08-26T14:21:52.948Z"
   }
 ]
