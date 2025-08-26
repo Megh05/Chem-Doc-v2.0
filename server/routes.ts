@@ -84,6 +84,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/templates/:id", async (req, res) => {
+    try {
+      const updatedTemplate = await storage.updateTemplate(req.params.id, req.body);
+      if (!updatedTemplate) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      res.status(400).json({ message: "Failed to update template", error: error.message });
+    }
+  });
+
+  app.delete("/api/templates/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteTemplate(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json({ message: "Template deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to delete template", error: error.message });
+    }
+  });
+
+  app.get("/api/templates/:id/download", async (req, res) => {
+    try {
+      const template = await storage.getTemplate(req.params.id);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+
+      const filePath = path.join(uploadDir, template.fileName);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "Template file not found" });
+      }
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${template.fileName}"`);
+      res.sendFile(filePath);
+    } catch (error: any) {
+      res.status(500).json({ message: "Failed to download template", error: error.message });
+    }
+  });
+
   // Documents routes
   app.get("/api/documents", async (req, res) => {
     try {

@@ -25,6 +25,26 @@ export default function Templates() {
 
   const templatesArray = Array.isArray(templates) ? templates : [];
 
+  const deleteMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const response = await apiRequest('DELETE', `/api/templates/${templateId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
+      toast({
+        title: "Template deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete template",
+        variant: "destructive",
+      });
+    }
+  });
+
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const response = await apiRequest('POST', '/api/templates', formData);
@@ -234,11 +254,29 @@ export default function Templates() {
                     <Edit3 className="w-4 h-4 mr-1" />
                     Edit
                   </Button>
-                  <Button variant="outline" size="sm" data-testid={`button-download-${template.id}`}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      const downloadUrl = `/api/templates/${template.id}/download`;
+                      window.open(downloadUrl, '_blank');
+                    }}
+                    data-testid={`button-download-${template.id}`}
+                  >
                     <Download className="w-4 h-4 mr-1" />
                     Download
                   </Button>
-                  <Button variant="outline" size="sm" data-testid={`button-delete-${template.id}`}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete "${template.name}"?`)) {
+                        deleteMutation.mutate(template.id);
+                      }
+                    }}
+                    disabled={deleteMutation.isPending}
+                    data-testid={`button-delete-${template.id}`}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>

@@ -31,6 +31,26 @@ export default function TemplateSelection({
   
   const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
 
+  const deleteMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const response = await apiRequest('DELETE', `/api/templates/${templateId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
+      toast({
+        title: "Template deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete template",
+        variant: "destructive",
+      });
+    }
+  });
+
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const response = await apiRequest('POST', '/api/templates', formData);

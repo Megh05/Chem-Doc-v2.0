@@ -329,16 +329,16 @@ class FileStorage implements IStorage {
 
   // Saved document methods
   async getSavedDocument(id: string): Promise<SavedDocument | undefined> {
-    const savedDocuments = this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    const savedDocuments = this.readJsonFile<SavedDocument>(this.savedDocumentsFile);
     return savedDocuments.find(doc => doc.id === id);
   }
 
   async getSavedDocuments(): Promise<SavedDocument[]> {
-    return this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    return this.readJsonFile<SavedDocument>(this.savedDocumentsFile);
   }
 
   async createSavedDocument(document: InsertSavedDocument): Promise<SavedDocument> {
-    const savedDocuments = this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    const savedDocuments = this.readJsonFile<SavedDocument>(this.savedDocumentsFile);
     const newSavedDocument: SavedDocument = {
       id: randomUUID(),
       ...document,
@@ -350,7 +350,7 @@ class FileStorage implements IStorage {
   }
 
   async deleteSavedDocument(id: string): Promise<boolean> {
-    const savedDocuments = this.readJsonFile<SavedDocument[]>(this.savedDocumentsFile, []);
+    const savedDocuments = this.readJsonFile<SavedDocument>(this.savedDocumentsFile);
     const index = savedDocuments.findIndex(doc => doc.id === id);
     if (index === -1) {
       return false;
