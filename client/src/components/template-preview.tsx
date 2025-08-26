@@ -62,18 +62,23 @@ export default function TemplatePreview({
           
           // Format the value appropriately
           if (value === null || value === undefined || value === '') {
-            return '';
+            return '<span class="preview-highlight-empty">—</span>';
           }
+          
+          let formattedValue = '';
           if (typeof value === 'boolean') {
-            return value ? 'Complies' : 'Non-compliant';
-          }
-          if (typeof value === 'number') {
-            return value.toString() + (fieldName.includes('ph') ? '' : 
+            formattedValue = value ? 'Complies' : 'Non-compliant';
+          } else if (typeof value === 'number') {
+            formattedValue = value.toString() + (fieldName.includes('ph') ? '' : 
                    fieldName.includes('content') || fieldName.includes('protein') || fieldName.includes('drying') ? '%' : '');
+          } else {
+            formattedValue = value.toString();
           }
-          return value.toString();
+          
+          // Wrap filled values with highlight class for preview
+          return `<span class="preview-highlight-filled">${formattedValue}</span>`;
         }
-        return '';
+        return '<span class="preview-highlight-empty">—</span>';
       });
       
       // Also handle any named placeholders that might exist
@@ -97,15 +102,37 @@ export default function TemplatePreview({
       });
 
       return (
-        <div 
-          className="template-content prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: filledHtml }}
-          style={{
-            fontFamily: 'Arial, sans-serif',
-            lineHeight: '1.6',
-            color: '#333'
-          }}
-        />
+        <div>
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              .preview-highlight-filled {
+                background-color: #dbeafe;
+                color: #1e40af;
+                padding: 2px 4px;
+                border-radius: 4px;
+                font-weight: 600;
+                border: 1px solid #93c5fd;
+              }
+              .preview-highlight-empty {
+                background-color: #fef3c7;
+                color: #d97706;
+                padding: 2px 4px;
+                border-radius: 4px;
+                font-style: italic;
+                border: 1px solid #fbbf24;
+              }
+            `
+          }} />
+          <div 
+            className="template-content prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: filledHtml }}
+            style={{
+              fontFamily: 'Arial, sans-serif',
+              lineHeight: '1.6',
+              color: '#333'
+            }}
+          />
+        </div>
       );
     }
 
