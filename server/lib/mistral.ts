@@ -99,15 +99,21 @@ async function processOCR(filePath: string, apiKey: string) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'mistral-ocr-latest',
+        model: 'pixtral-12b-2409',
         messages: [{
           role: 'user',
-          content: [{
-            type: 'image_url',
-            image_url: {
-              url: dataUrl
+          content: [
+            {
+              type: 'text',
+              text: 'Extract all text content from this document. Focus on identifying data fields, placeholders, and variable content that would need to be filled in.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: dataUrl
+              }
             }
-          }]
+          ]
         }],
         temperature: 0.1,
         max_tokens: 4000
@@ -115,7 +121,9 @@ async function processOCR(filePath: string, apiKey: string) {
     });
 
     if (!response.ok) {
-      throw new Error(`OCR API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('OCR API response:', response.status, response.statusText, errorText);
+      throw new Error(`OCR API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const result = await response.json();
