@@ -11,7 +11,7 @@ import { Link } from "wouter";
 
 export default function Settings() {
   const [apiSettings, setApiSettings] = useState({
-    mistralApiKeyMasked: "sk-***...***abc",
+    mistralApiKey: "",
     ocrEndpoint: "https://api.mistral.ai/v1/ocr/process",
     llmModel: "mistral-large-latest"
   });
@@ -45,6 +45,7 @@ export default function Settings() {
       
       setApiSettings(prev => ({
         ...prev,
+        mistralApiKey: configObj.apiSettings?.mistralApiKey || prev.mistralApiKey,
         ocrEndpoint: configObj.apiSettings?.ocrEndpoint || prev.ocrEndpoint,
         llmModel: configObj.apiSettings?.llmModel || prev.llmModel
       }));
@@ -70,6 +71,7 @@ export default function Settings() {
     mutationFn: async () => {
       const configData = {
         apiSettings: {
+          mistralApiKey: apiSettings.mistralApiKey,
           ocrEndpoint: apiSettings.ocrEndpoint,
           llmModel: apiSettings.llmModel
         },
@@ -112,6 +114,7 @@ export default function Settings() {
       if (data.config) {
         setApiSettings({
           ...apiSettings,
+          mistralApiKey: data.config.apiSettings.mistralApiKey,
           ocrEndpoint: data.config.apiSettings.ocrEndpoint,
           llmModel: data.config.apiSettings.llmModel
         });
@@ -186,18 +189,21 @@ export default function Settings() {
                 <div className="flex items-center space-x-2">
                   <Input
                     type="password"
-                    value="sk-***...***configured"
-                    readOnly
-                    className="bg-green-50 border-green-200 text-green-800"
+                    value={apiSettings.mistralApiKey}
+                    onChange={(e) => setApiSettings({ ...apiSettings, mistralApiKey: e.target.value })}
+                    placeholder="sk-..."
+                    className={apiSettings.mistralApiKey ? "bg-green-50 border-green-200 text-green-800" : ""}
                     data-testid="input-api-key"
                   />
-                  <div className="flex items-center text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                    <span className="text-xs font-medium">Active</span>
-                  </div>
+                  {apiSettings.mistralApiKey && (
+                    <div className="flex items-center text-green-600">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      <span className="text-xs font-medium">Configured</span>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-green-600 mt-1">
-                  ✓ API key is properly configured and ready for document processing
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter your Mistral API key for document processing. Get one at console.mistral.ai
                 </p>
               </div>
               

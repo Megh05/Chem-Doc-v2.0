@@ -1,5 +1,6 @@
 import fs from 'fs';
 import FormData from 'form-data';
+import { loadConfig } from '../config';
 
 interface MistralProcessingResult {
   extractedText: string;
@@ -13,10 +14,11 @@ export async function processDocumentWithMistral(
   placeholders: string[]
 ): Promise<MistralProcessingResult> {
   
-  const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+  const config = loadConfig();
+  const MISTRAL_API_KEY = config.apiSettings.mistralApiKey || process.env.MISTRAL_API_KEY;
   
   if (!MISTRAL_API_KEY) {
-    throw new Error("Mistral API key not found. Please set MISTRAL_API_KEY environment variable.");
+    throw new Error("Mistral API key not found. Please set it in the Settings page or MISTRAL_API_KEY environment variable.");
   }
 
   try {
@@ -40,7 +42,8 @@ export async function processDocumentWithMistral(
 }
 
 export async function extractPlaceholdersFromTemplate(filePath: string): Promise<string[]> {
-  const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+  const config = loadConfig();
+  const MISTRAL_API_KEY = config.apiSettings.mistralApiKey || process.env.MISTRAL_API_KEY;
   
   if (!MISTRAL_API_KEY) {
     console.warn("Mistral API key not found. Using fallback placeholders.");

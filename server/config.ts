@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
-interface AppConfig {
+export interface AppConfig {
   apiSettings: {
+    mistralApiKey: string;
     ocrEndpoint: string;
     llmModel: string;
   };
@@ -22,6 +23,7 @@ interface AppConfig {
 
 const defaultConfig: AppConfig = {
   apiSettings: {
+    mistralApiKey: "",
     ocrEndpoint: "https://api.mistral.ai/v1/ocr/process",
     llmModel: "mistral-large-latest"
   },
@@ -46,7 +48,14 @@ export function loadConfig(): AppConfig {
     if (fs.existsSync(configPath)) {
       const configData = fs.readFileSync(configPath, 'utf-8');
       const config = JSON.parse(configData);
-      return { ...defaultConfig, ...config };
+      // Merge deeply to preserve nested structure
+      return {
+        ...defaultConfig,
+        ...config,
+        apiSettings: { ...defaultConfig.apiSettings, ...config.apiSettings },
+        processingSettings: { ...defaultConfig.processingSettings, ...config.processingSettings },
+        notificationSettings: { ...defaultConfig.notificationSettings, ...config.notificationSettings }
+      };
     }
   } catch (error) {
     console.warn('Failed to load config file, using defaults:', error);
