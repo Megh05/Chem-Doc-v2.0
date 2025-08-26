@@ -64,6 +64,7 @@ export const insertTemplateSchema = z.object({
   fileName: z.string(),
   fileSize: z.number(),
   placeholders: z.array(z.string()).optional().default([]), // LLM-extracted placeholders
+  html: z.string().optional(), // Template HTML structure
 });
 
 export const insertDocumentSchema = z.object({

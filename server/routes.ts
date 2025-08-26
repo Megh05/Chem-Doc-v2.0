@@ -696,8 +696,40 @@ async function processDocumentInBackground(jobId: string) {
 
     const startTime = Date.now();
     
+    // Get template HTML structure for extraction
+    let templateHtml = template.html;
+    if (!templateHtml) {
+      // Parse template file to get HTML structure
+      const files = fs.readdirSync(uploadDir);
+      let targetFile: string | null = null;
+
+      if (fs.existsSync(path.join(uploadDir, template.fileName))) {
+        targetFile = template.fileName;
+      } else {
+        for (const file of files) {
+          const filePath = path.join(uploadDir, file);
+          const stats = fs.statSync(filePath);
+          if (stats.size === template.fileSize) {
+            targetFile = file;
+            break;
+          }
+        }
+      }
+
+      if (targetFile) {
+        const templatePath = path.join(uploadDir, targetFile);
+        const structure = await parseTemplateStructure(templatePath);
+        templateHtml = structure.html;
+        
+        // Update template with HTML for future use
+        await storage.updateTemplate(template.id, { html: templateHtml });
+      }
+    }
+    
+    console.log('📋 Using template HTML for extraction:', templateHtml?.substring(0, 200) + '...');
+    
     // Process with Mistral AI using template-guided extraction 
-    const result = await processDocumentWithMistral(document.filePath, template.html || '');
+    const result = await processDocumentWithMistral(document.filePath, templateHtml || '');
     
     const processingTime = Math.floor((Date.now() - startTime) / 1000);
     
