@@ -38,7 +38,7 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `generated_document.${variables.format}`;
+      a.download = `document.${variables.format === 'pdf' ? 'html' : 'docx'}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -80,12 +80,8 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
     }
   });
 
-  const handleGenerateDocument = (action: 'pdf' | 'docx' | 'save' = 'save') => {
-    if (action === 'save') {
-      saveDocumentMutation.mutate();
-    } else {
-      generateDocumentMutation.mutate({ format: action, jobId: job.id });
-    }
+  const handleGenerateDocument = (format: 'pdf' | 'docx') => {
+    generateDocumentMutation.mutate({ format, jobId: job.id });
   };
 
   const getFieldStatus = (field: string, value: any) => {
@@ -196,7 +192,9 @@ export default function DataExtraction({ job, template }: DataExtractionProps) {
             <TemplatePreview
               template={template}
               extractedData={editedData}
-              onDownload={handleGenerateDocument}
+              onSave={() => saveDocumentMutation.mutate()}
+              onExport={handleGenerateDocument}
+              isSaving={saveDocumentMutation.isPending}
             />
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 min-h-96 flex items-center justify-center">

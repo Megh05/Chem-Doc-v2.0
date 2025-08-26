@@ -240,8 +240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Template not found" });
       }
 
+      // Use provided data, fallback to job extracted data
+      const documentData = data || job.extractedData || {};
+
       if (format === 'pdf') {
-        const htmlContent = generateHTMLContent(template, data);
+        const htmlContent = generateHTMLContent(template, documentData);
         
         res.setHeader('Content-Type', 'text/html');
         res.setHeader('Content-Disposition', `attachment; filename="${template.name}_filled.html"`);
@@ -256,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title.options.align = 'center';
         
         // Add content
-        const content = generateDocxContent(template, data);
+        const content = generateDocxContent(template, documentData);
         content.forEach(line => {
           const p = docx.createP();
           p.addText(line.text, line.options || { font_face: 'Arial', font_size: 11 });

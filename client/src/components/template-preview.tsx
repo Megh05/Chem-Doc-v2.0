@@ -1,19 +1,24 @@
 import { useState } from "react";
-import { Download, Eye } from "lucide-react";
+import { Download, Eye, Save, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Template } from "@shared/schema";
 
 interface TemplatePreviewProps {
   template: Template;
   extractedData: Record<string, any>;
-  onDownload?: (format: 'pdf' | 'docx') => void;
+  onSave?: () => void;
+  onExport?: (format: 'pdf' | 'docx') => void;
+  isSaving?: boolean;
 }
 
 export default function TemplatePreview({ 
   template, 
   extractedData, 
-  onDownload 
+  onSave,
+  onExport,
+  isSaving = false
 }: TemplatePreviewProps) {
   const [showFullPreview, setShowFullPreview] = useState(false);
 
@@ -35,35 +40,35 @@ export default function TemplatePreview({
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Product Name:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-product_name">
-                  {extractedData.product_name || 'COSCARE-H ACID'}
+                  {extractedData.product_name || '{product_name}'}
                 </span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">INCI Name:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-inci_name">
-                  {extractedData.inci_name || 'Sodium Hyaluronate'}
+                  {extractedData.inci_name || '{inci_name}'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Batch Number:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-batch_number">
-                  {extractedData.batch_number || '25042211'}
+                  {extractedData.batch_number || '{batch_number}'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Manufacturing Date:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-manufacturing_date">
-                  {extractedData.manufacturing_date || '2025-04-22'}
+                  {extractedData.manufacturing_date || '{manufacturing_date}'}
                 </span>
               </div>
 
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">Expiry Date:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-expiry_date">
-                  {extractedData.expiry_date || '2027-04-22'}
+                  {extractedData.expiry_date || '{expiry_date}'}
                 </span>
               </div>
             </div>
@@ -83,77 +88,77 @@ export default function TemplatePreview({
                     <td className="px-4 py-2 border-r border-gray-200">Appearance</td>
                     <td className="px-4 py-2 border-r border-gray-200">White solid powder</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.appearance || 'White solid powder'}
+                      {extractedData.appearance || '{appearance}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Molecular weight</td>
                     <td className="px-4 py-2 border-r border-gray-200">(0.5 – 1.8) x 10⁶</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.molecular_weight || '1.2 x 10⁶'}
+                      {extractedData.molecular_weight || '{molecular_weight}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Sodium hyaluronate content</td>
                     <td className="px-4 py-2 border-r border-gray-200">≥ 95%</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.sodium_hyaluronate_content || '98.5%'}
+                      {extractedData.sodium_hyaluronate_content || '{sodium_hyaluronate_content}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Protein</td>
                     <td className="px-4 py-2 border-r border-gray-200">≤ 0.1%</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.protein || '0.05%'}
+                      {extractedData.protein || '{protein}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Loss on drying</td>
                     <td className="px-4 py-2 border-r border-gray-200">≤ 10%</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.loss_on_drying || '7.2%'}
+                      {extractedData.loss_on_drying || '{loss_on_drying}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">pH</td>
                     <td className="px-4 py-2 border-r border-gray-200">5.0-8.5</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.ph || '6.8'}
+                      {extractedData.ph || '{ph}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Staphylococcus Aureus</td>
                     <td className="px-4 py-2 border-r border-gray-200">Negative</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.staphylococcus_aureus || 'Negative'}
+                      {extractedData.staphylococcus_aureus || '{staphylococcus_aureus}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Pseudomonas Aeruginosa</td>
                     <td className="px-4 py-2 border-r border-gray-200">Negative</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.pseudomonas_aeruginosa || 'Negative'}
+                      {extractedData.pseudomonas_aeruginosa || '{pseudomonas_aeruginosa}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Heavy metal</td>
                     <td className="px-4 py-2 border-r border-gray-200">≤20 ppm</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.heavy_metal || '<10 ppm'}
+                      {extractedData.heavy_metal || '{heavy_metal}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Total Bacteria</td>
                     <td className="px-4 py-2 border-r border-gray-200">&lt; 100 CFU/g</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.total_bacteria || '<50 CFU/g'}
+                      {extractedData.total_bacteria || '{total_bacteria}'}
                     </td>
                   </tr>
                   <tr className="border-t border-gray-200">
                     <td className="px-4 py-2 border-r border-gray-200">Yeast and molds</td>
                     <td className="px-4 py-2 border-r border-gray-200">&lt; 50 CFU/g</td>
                     <td className="px-4 py-2 text-primary-600 font-medium">
-                      {extractedData.yeast_and_molds || '<25 CFU/g'}
+                      {extractedData.yeast_and_molds || '{yeast_and_molds}'}
                     </td>
                   </tr>
                 </tbody>
@@ -165,13 +170,13 @@ export default function TemplatePreview({
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">ISSUED DATE:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-issued_date">
-                  {extractedData.issued_date || '20/01/2024'}
+                  {extractedData.issued_date || '{issued_date}'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700">TEST RESULT:</span>
                 <span className="text-primary-600 font-medium" data-testid="preview-test_result">
-                  {extractedData.test_result || 'Conforms'}
+                  {extractedData.test_result || '{test_result}'}
                 </span>
               </div>
             </div>
@@ -231,20 +236,32 @@ export default function TemplatePreview({
 
         <div className="flex space-x-2 justify-center">
           <Button 
-            onClick={() => onDownload?.('pdf')}
-            data-testid="button-download-pdf"
+            onClick={onSave}
+            disabled={isSaving}
+            data-testid="button-save-document"
           >
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
+            <Save className="w-4 h-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Document'}
           </Button>
-          <Button 
-            variant="outline"
-            onClick={() => onDownload?.('docx')}
-            data-testid="button-download-docx"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download Word
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" data-testid="button-export-dropdown">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+                <ChevronDown className="w-4 h-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => onExport?.('pdf')} data-testid="menu-export-pdf">
+                <Download className="w-4 h-4 mr-2" />
+                Export as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onExport?.('docx')} data-testid="menu-export-docx">
+                <Download className="w-4 h-4 mr-2" />
+                Export as Word
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </Card>
     );
@@ -259,13 +276,34 @@ export default function TemplatePreview({
 
       <div className="mt-4 flex space-x-2">
         <Button
-          className="flex-1"
-          onClick={() => onDownload?.('pdf')}
-          data-testid="button-generate-document"
+          onClick={onSave}
+          disabled={isSaving}
+          data-testid="button-save-document"
         >
-          <Download className="w-4 h-4 mr-2" />
-          Generate Document
+          <Save className="w-4 h-4 mr-2" />
+          {isSaving ? 'Saving...' : 'Save Document'}
         </Button>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" data-testid="button-export-dropdown">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => onExport?.('pdf')} data-testid="menu-export-pdf">
+              <Download className="w-4 h-4 mr-2" />
+              Export as PDF
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onExport?.('docx')} data-testid="menu-export-docx">
+              <Download className="w-4 h-4 mr-2" />
+              Export as Word
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        
         <Button 
           variant="outline" 
           onClick={() => setShowFullPreview(true)}
